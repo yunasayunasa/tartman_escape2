@@ -4,14 +4,15 @@ import { random, inPond, START, AREAS, POINTS, STORIES, distance, walkable } fro
 
 export async function createRenderer(host, world) {
   const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setClearColor(0x10252c);host.append(renderer.domElement);
-  const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x21404a,20,46);
+  const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<=600,qualityRatio=()=>Math.min(devicePixelRatio,mobile?1.2:1.35);
+  renderer.setPixelRatio(qualityRatio());renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setClearColor(0x071218);host.append(renderer.domElement);
+  const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x152e37,17,42);
   // Perspective and a lower viewing angle create real scale falloff and foreground parallax.
   const camera=new THREE.PerspectiveCamera(45,1,.1,95),cameraOffset=new THREE.Vector3(0,14,22),focus=new THREE.Vector3(START.x,.35,START.z-4);
   camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);
-  scene.add(new THREE.HemisphereLight(0xa6ccd7,0x334437,1.85));
-  const moon=new THREE.DirectionalLight(0x90b1d6,1.45);moon.position.set(-10,30,-8);moon.castShadow=true;moon.shadow.mapSize.set(1024,1024);moon.shadow.camera.left=-16;moon.shadow.camera.right=16;moon.shadow.camera.top=20;moon.shadow.camera.bottom=-20;moon.shadow.camera.far=65;moon.shadow.bias=-.0007;scene.add(moon);
+  scene.add(new THREE.HemisphereLight(0x8eabb8,0x17261f,1.08));
+  const moon=new THREE.DirectionalLight(0x829dbd,.72);moon.position.set(-10,30,-8);moon.castShadow=false;moon.shadow.mapSize.set(512,512);moon.shadow.camera.left=-16;moon.shadow.camera.right=16;moon.shadow.camera.top=20;moon.shadow.camera.bottom=-20;moon.shadow.camera.far=65;moon.shadow.bias=-.0007;scene.add(moon);
   const images=await Promise.all(['forest-tilemap.png','japanese-props.png','tree-broad.png','tree-tall.png','girl-source.jpg','tartman.png'].map(load));
   const [tiles,props,broad,tall,girl,tart]=images,atlas=girlAtlas(girl),enemy=enemyAtlas(tart),rects=alphaRects(props),rng=random(931);
   if(rects.length!==3)throw Error(`小物の分離数が不正: ${rects.length}`);
@@ -61,7 +62,7 @@ export async function createRenderer(host, world) {
   for(let i=0;i<64;i++){const a=i/64*Math.PI*2,x=42+Math.cos(a)*2.8,z=46+Math.sin(a)*3.9;const m=billboard(tileMaps.rocks,x,z,.45+rng()*.3,.35+rng()*.25,0x95aaa0);scenery.push(m);}
   for(let i=0;i<25;i++){const x=42+(rng()-.5)*4.5,z=46+(rng()-.5)*6;if(!inPond(x,z))continue;const m=new THREE.Mesh(new THREE.PlaneGeometry(.2+rng()*.65,.02),new THREE.MeshBasicMaterial({color:0x8bb6bc,transparent:true,opacity:.3}));m.rotation.x=-Math.PI/2;m.position.set(x,.024,z);m.userData.phase=rng()*6;scene.add(m);ripples.push(m);}
   // Trees occupy impassable ground; this same footprint blocks AI vision.
-  for(let z=3;z<62;z+=1.65)for(let x=3;x<62;x+=1.65){if(walkable(world,x,z,.55)||inPond(x,z)||rng()<.27)continue;if((distance({x,z},{x:17,z:44})<2.8)||(distance({x,z},{x:46,z:17})<3))continue;const cedar=distance({x,z},AREAS[2])<12||rng()<.3,h=4.4+rng()*2.6,px=x+(rng()-.5)*.3,pz=z+(rng()-.5)*.3,py=terrainHeight(px,pz);if(distance({x:px,z:pz},AREAS[0])<13){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16,.27,Math.min(3.2,h*.55),9),new THREE.MeshStandardMaterial({color:cedar?0x354039:0x4b4134,roughness:1,transparent:true}));trunk.position.set(px,py+trunk.geometry.parameters.height/2,pz);trunk.castShadow=true;trunk.receiveShadow=true;scene.add(trunk);trunks.push(trunk);scenery.push(trunk);}const m=billboard(cedar?tallMap:broadMap,px,pz,h*(cedar?.53:1.01),h,new THREE.Color().setHSL(.46,.16,.42+rng()*.15),py);trees.push(m);scenery.push(m);}
+  for(let z=3;z<62;z+=1.65)for(let x=3;x<62;x+=1.65){if(walkable(world,x,z,.55)||inPond(x,z)||rng()<.27||world.segments.some(([a,b])=>segmentDistance({x,z},a,b)<3.35))continue;if((distance({x,z},{x:17,z:44})<2.8)||(distance({x,z},{x:46,z:17})<3))continue;const cedar=distance({x,z},AREAS[2])<12||rng()<.3,h=4.4+rng()*2.6,px=x+(rng()-.5)*.3,pz=z+(rng()-.5)*.3,py=terrainHeight(px,pz);if(distance({x:px,z:pz},AREAS[0])<13){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16,.27,Math.min(3.2,h*.55),9),new THREE.MeshStandardMaterial({color:cedar?0x354039:0x4b4134,roughness:1,transparent:true}));trunk.position.set(px,py+trunk.geometry.parameters.height/2,pz);trunk.castShadow=true;trunk.receiveShadow=true;scene.add(trunk);trunks.push(trunk);scenery.push(trunk);}const m=billboard(cedar?tallMap:broadMap,px,pz,h*(cedar?.53:1.01),h,new THREE.Color().setHSL(.46,.16,.42+rng()*.15),py);m.castShadow=false;trees.push(m);scenery.push(m);}
   for(let i=0;i<550;i++){const x=5+rng()*55,z=5+rng()*55;if(inPond(x,z)||POINTS.some(p=>distance(p,{x,z})<1.1)||distance(START,{x,z})<2)continue;const edge=walkable(world,x,z,0)&&!walkable(world,x,z,1.2);if(!edge&&rng()<.8)continue;const kind=['fern','bush','shrub','stone','log'][Math.floor(rng()*5)],r=FOREST[kind],w=.35+rng()*.65;scenery.push(billboard(tileMaps[kind],x,z,w,w*r[3]/r[2],0x8fa394));}
   for(const a of [AREAS[2],{x:31,z:32}])for(let i=0;i<6;i++){const ang=i/6*Math.PI*2;box(a.x+Math.sin(ang)*1.4,a.z+Math.cos(ang)*1.4,.5,.35+rng()*.6,.55,0x5b716a);}
   function icon(kind){const c=makeCanvas(64,80),x=c.getContext('2d');x.strokeStyle='#f6d99b';x.fillStyle='#e1cd9e';x.lineWidth=5;if(kind==='key'){x.beginPath();x.arc(32,23,11,0,Math.PI*2);x.moveTo(32,35);x.lineTo(32,65);x.lineTo(43,65);x.moveTo(32,54);x.lineTo(40,54);x.stroke();}else{x.fillRect(14,28,35,37);x.fillStyle='#7c775c';for(let i=0;i<4;i++)x.fillRect(21,36+i*6,21,2);}return tex(c,true);}
@@ -71,23 +72,23 @@ export async function createRenderer(host, world) {
   const actor=billboard(atlas.map,START.x,START.z,1.35*atlas.width/atlas.height,1.35,0xe4edf0,.06);actor.material.dispose();actor.material=new THREE.MeshBasicMaterial({map:atlas.map,color:0xc9dce3,transparent:true,alphaTest:.14,side:THREE.DoubleSide});atlas.map.repeat.set(1/8,1/8);
   const ghost=billboard(enemy.map,0,0,1.8*enemy.width/enemy.height,1.8,0xd8ccba,.06);ghost.material.emissive.set(0x242324);enemy.map.repeat.set(1/7,1/8);ghost.visible=false;
   const playerShadow=disk(shadowMap,START.x,START.z,.8,.5,.8,.025),ghostShadow=disk(shadowMap,0,0,1,.6,.8,.025);
-  const flashlight=new THREE.SpotLight(0xffe6b8,15,10,.43,.7,1.3);flashlight.castShadow=true;flashlight.shadow.mapSize.set(512,512);flashlight.shadow.bias=-.0008;flashlight.shadow.normalBias=.035;scene.add(flashlight,flashlight.target);
+  const flashlight=new THREE.SpotLight(0xffe6b8,20,11,.43,.7,1.3);flashlight.castShadow=true;flashlight.shadow.mapSize.set(256,256);flashlight.shadow.bias=-.0008;flashlight.shadow.normalBias=.035;scene.add(flashlight,flashlight.target);
   // A ground cone clipped by the exact same wall cells as movement and sight.
   const coneGeo=new THREE.BufferGeometry(),conePos=new Float32Array(32*9),coneColors=new Float32Array(32*9);for(let i=0;i<32;i++)coneColors.set([.6,.64,.5,0,0,0,0,0,0],i*9);coneGeo.setAttribute('position',new THREE.BufferAttribute(conePos,3));coneGeo.setAttribute('color',new THREE.BufferAttribute(coneColors,3));const cone=new THREE.Mesh(coneGeo,new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:.15,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.frustumCulled=false;scene.add(cone);
   const fog=[];for(let i=0;i<10;i++){const m=billboard(fogMap,0,0,10+rng()*8,3+rng()*3,0xa9c5c6,.3);m.material=new THREE.MeshBasicMaterial({map:fogMap,transparent:true,opacity:.15,depthWrite:false,fog:false});m.castShadow=false;m.userData={x:(rng()-.5)*26,z:(rng()-.5)*28,phase:rng()*6};fog.push(m);}
   // Nine-tap depth-of-field uses the real scene depth, preserving sprite alpha cutouts.
   const target=new THREE.WebGLRenderTarget(1,1,{depthTexture:new THREE.DepthTexture(1,1)}),postScene=new THREE.Scene(),postCamera=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   const post=new THREE.ShaderMaterial({uniforms:{tColor:{value:target.texture},tDepth:{value:target.depthTexture},resolution:{value:new THREE.Vector2(1,1)},focus:{value:cameraOffset.length()},near:{value:camera.near},far:{value:camera.far}},vertexShader:'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`varying vec2 vUv; uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 resolution; uniform float focus,near,far;
-    void main(){float raw=texture2D(tDepth,vUv).x;float depth=(near*far)/(far-raw*(far-near));float radius=smoothstep(2.2,10.,abs(depth-focus))*2.8;vec2 stepUV=radius/resolution;vec4 color=texture2D(tColor,vUv)*.28;
+    void main(){float raw=texture2D(tDepth,vUv).x;float depth=(near*far)/(far-raw*(far-near));float radius=smoothstep(1.8,8.,abs(depth-focus))*3.8;vec2 stepUV=radius/resolution;vec4 color=texture2D(tColor,vUv)*.28;
     color+=texture2D(tColor,vUv+vec2(stepUV.x,0.))*.12;color+=texture2D(tColor,vUv-vec2(stepUV.x,0.))*.12;color+=texture2D(tColor,vUv+vec2(0.,stepUV.y))*.12;color+=texture2D(tColor,vUv-vec2(0.,stepUV.y))*.12;
     color+=texture2D(tColor,vUv+stepUV)*.06;color+=texture2D(tColor,vUv-stepUV)*.06;color+=texture2D(tColor,vUv+vec2(stepUV.x,-stepUV.y))*.06;color+=texture2D(tColor,vUv+vec2(-stepUV.x,stepUV.y))*.06;gl_FragColor=color;
     #include <colorspace_fragment>
     }`});postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),post));
-  let lightQuality=false;
-  function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.fov=h>w?47:41;camera.updateProjectionMatrix();renderer.setSize(w,h);const pr=renderer.getPixelRatio();target.setSize(Math.round(w*pr),Math.round(h*pr));post.uniforms.resolution.value.set(w*pr,h*pr);}
+  let lightQuality=false,renderScale=mobile?.72:.82,slowFrames=0;
+  function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.fov=h>w?47:41;camera.updateProjectionMatrix();renderer.setSize(w,h);const pr=renderer.getPixelRatio(),tw=Math.round(w*pr*renderScale),th=Math.round(h*pr*renderScale);target.setSize(tw,th);post.uniforms.resolution.value.set(tw,th);host.dataset.renderScale=String(renderScale);}
   new ResizeObserver(resize).observe(host);resize();
   const screen=new THREE.Vector3();
-  return {atlas,enemy,rects,setQuality(low){lightQuality=low;renderer.setPixelRatio(low?1:Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=!low;resize();},reset(g){focus.set(g.player.x,0,g.player.z-2);},draw(g,dt){
+  return {atlas,enemy,rects,setQuality(low){lightQuality=low;renderer.setPixelRatio(low?1:qualityRatio());renderer.shadowMap.enabled=!low;renderScale=low?1:(mobile?.72:.82);resize();},reset(g){focus.set(g.player.x,0,g.player.z-2);},draw(g,dt){
     const p=g.player,e=g.ghost,playerY=terrainHeight(p.x,p.z);focus.lerp(new THREE.Vector3(p.x,playerY+.35,p.z-4),1-Math.exp(-dt*4.2));camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);
     const dir=((Math.round(p.facing/(Math.PI/4))%8)+8)%8,row=atlas.directionRows[dir],frame=p.moving?Math.floor(g.time*(p.running?12:8))%8:0;atlas.map.offset.set(frame/8,1-(row+1)/8);actor.position.set(p.x,playerY+.06,p.z);playerShadow.position.set(p.x,playerY+.025,p.z);
     ghost.visible=e.state!=='absent'&&distance(e,p)<21;ghostShadow.visible=ghost.visible;if(ghost.visible){const er=((Math.round(e.facing/(Math.PI/4))%8)+8)%8,ef=e.moving?Math.floor(g.time*(e.state==='chase'?10:6))%7:0;enemy.map.offset.set(ef/7,1-(er+1)/8);ghost.position.set(e.x,.06,e.z);ghostShadow.position.set(e.x,.025,e.z);}
@@ -99,6 +100,7 @@ export async function createRenderer(host, world) {
     flashlight.visible=g.light;flashlight.position.set(p.x,playerY+1.0,p.z);flashlight.target.position.set(p.x+Math.sin(p.facing)*6,terrainHeight(p.x+Math.sin(p.facing)*6,p.z+Math.cos(p.facing)*6),p.z+Math.cos(p.facing)*6);cone.visible=g.light;
     if(g.light){const ends=[];for(let i=0;i<=32;i++){const a=p.facing-.43+i/32*.86;let r=.3;while(r<7&&walkable(world,p.x+Math.sin(a)*r,p.z+Math.cos(a)*r,0))r+=.16;const x=p.x+Math.sin(a)*r,z=p.z+Math.cos(a)*r;ends.push([x,terrainHeight(x,z)+.028,z]);}for(let i=0;i<32;i++)conePos.set([p.x,playerY+.028,p.z,...ends[i],...ends[i+1]],i*9);coneGeo.attributes.position.needsUpdate=true;}
     fog.forEach(m=>m.position.set(focus.x+m.userData.x+Math.sin(g.time*.08+m.userData.phase)*2,.5,focus.z+m.userData.z));ripples.forEach(m=>m.material.opacity=.15+Math.sin(g.time*.6+m.userData.phase)*.10);lanterns.forEach((m,i)=>m.material.opacity=.65+Math.sin(g.time*3+i)*.05);
+    if(!lightQuality&&dt>.026){slowFrames+=dt;if(slowFrames>2&&renderScale>.58){renderScale=.58;renderer.shadowMap.enabled=false;resize();host.dataset.adaptive='true';}}else slowFrames=Math.max(0,slowFrames-dt*.3);
     if(lightQuality){renderer.setRenderTarget(null);renderer.render(scene,camera);}else{post.uniforms.focus.value=cameraOffset.length();renderer.setRenderTarget(target);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCamera);}
     return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
   }};

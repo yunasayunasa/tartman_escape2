@@ -17,6 +17,9 @@ export const STORIES = Object.freeze([
   { x: 17, z: 50, title: '濡れた手帳', text: '「錠前は五つ。鍵は、四つの場所に散らした。\n帰るときは、入口の鳥居へ。」\n\n甘い匂いがしても、ついていかないで。' },
   { x: 48, z: 50, title: '水守の覚え書き', text: '明かりを消せば、遠くからは見つかりにくい。\nけれど、走る足音までは消せない。\n\n木立の向こうへ逃げ、息を整えること。' },
   { x: 15, z: 22, title: '破れた帰路図', text: '小径、池、参道、奥社。\n四つの道は、輪のようにつながっている。\n\n追われたら、別の道へ。\n走る力を使い切る前に、角を曲がること。' },
+  { x: 50, z: 19, title: '宛名のない手紙', text: '「今夜も、灯りをひとつ残しておきます。\nあなたが道を忘れても、森が覚えているように。」\n\n紙の端に、乾いた泥がついている。' },
+  { x: 44, z: 43, title: '水染みの便箋', text: '「池には顔を映さないで。\n水の底から見返すものは、あなたより先に笑うから。」\n\n最後の一行だけ、何度も消されている。' },
+  { x: 21, z: 16, title: '折り畳まれた手紙', text: '「足音が二つ聞こえたら、走らないで。\n三つ聞こえたら、もう振り返らないで。」\n\n差出人の名は、黒く塗り潰されている。' },
 ]);
 export const BALANCE = Object.freeze([
   { label: '静寂', sight: 0, chase: 0, reaction: 0, search: 0, hearing: 0 },
@@ -94,7 +97,7 @@ export function updateEnemy(g,dt){
     e.state='chase';e.target={x:p.x,z:p.z};e.memory=b.search;
   }else if(e.state==='chase'){e.state='search';e.memory=b.search;e.repath=0;}
   // Hearing records the noise location, never a hidden player's ongoing position.
-  if(e.state!=='chase'&&p.running&&d<b.hearing&&g.time>=e.hearAt&&e.cooldown===0){const route=pathfind(g.world,e,p);if(route.length&&route.length<b.hearing*1.5){e.state='search';e.memory=b.search;target(e,p);}e.hearAt=g.time+1.5;}
+  if(e.state!=='chase'&&p.running&&d<b.hearing*1.22&&g.time>=e.hearAt&&e.cooldown===0){const route=pathfind(g.world,e,p);if(route.length&&route.length<b.hearing*1.75){e.state='search';e.memory=b.search+1.1;target(e,p);}e.hearAt=g.time+1.15;}
   if(e.state==='chase'){e.chaseTime+=dt;if(e.chaseTime>=12){e.state='search';e.memory=2.4;e.cooldown=5;e.awareness=0;target(e,p);}}
   if(e.state==='search'){e.memory-=dt;if(e.memory<=0){e.state='patrol';e.target=null;e.awareness=0;e.cooldown=Math.max(e.cooldown,2.5);}}
   if(e.state==='patrol'&&(!e.target||distance(e,e.target)<.65)){const choices=POINTS.filter(q=>distance(q,e)>6);target(e,choices[Math.floor(g.rng()*choices.length)]);}

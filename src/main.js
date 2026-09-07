@@ -4,7 +4,7 @@ import { createRenderer } from './render.js';
 import { createInput } from './input.js';
 import { ForestAudio } from './audio.js';
 
-const $=s=>document.querySelector(s),app=$('#app'),audio=new ForestAudio();audio.setMuted(true);
+const $=s=>document.querySelector(s),app=$('#app'),audio=new ForestAudio();
 const querySeed=new URLSearchParams(location.search).get('seed');
 let zone=createZone(querySeed!==null&&Number.isFinite(Number(querySeed))?Number(querySeed):Date.now()),view,controls,modalAction,previousState='',last=performance.now(),lowQuality=false;
 function show(label,title,text,button,action,{settings=false,map=false}={}){
@@ -15,7 +15,7 @@ function restart(){zone=createZone(querySeed!==null&&Number.isFinite(Number(quer
 function mapContent(){const current=areaAt(zone.player);$('#map-grid').replaceChildren(...[2,3,0,1].map(index=>{const a=AREAS[index],el=document.createElement('div'),keys=zone.keys.filter(k=>k.area===index);el.className='map-area';el.classList.toggle('current',a.id===current.id);el.dataset.area=a.id;const name=document.createElement('b'),count=document.createElement('span');name.textContent=a.name;count.textContent=`${a.id===current.id?'現在地 · ':''}鍵 ${keys.filter(k=>k.taken).length} / ${keys.length}${index===0?' · 入口':''}`;el.append(name,count);return el;}));}
 function pause(){if(zone.state==='paused'||zone.state==='reading'){resume();return;}if(zone.state!=='playing')return;zone.state='paused';mapContent();show('ひと休み','森は、待っている。','消灯すると見つかりにくくなります。\n走る足音には、気をつけて。','森へ戻る',resume,{settings:true,map:true});}
 controls=createInput(app,{playing:()=>zone.state==='playing',lock:()=>{if(zone.state==='playing')zone.player.locked=!zone.player.locked;},pause,autoPause:()=>{if(zone.state==='playing')pause();},interact:()=>interact(zone)});
-$('#pause').onclick=pause;$('#map-button').onclick=pause;$('#modal-action').onclick=()=>modalAction?.();
+$('#pause').onclick=pause;$('#map-button').onclick=pause;$('#modal-action').onclick=async()=>{if(!audio.muted){try{await audio.start();app.dataset.audio='ready';}catch{audio.setMuted(true);app.dataset.audio='unavailable';$('#mute').textContent='音 OFF';$('#mute').setAttribute('aria-pressed','true');}}modalAction?.();};
 $('#light').onclick=()=>{if(zone.state==='playing')zone.light=!zone.light;};
 $('#mute').onclick=async()=>{try{await audio.start();audio.setMuted(!audio.muted);audio.suspend(zone.state!=='playing');}catch{audio.setMuted(true);}$('#mute').textContent=`音 ${audio.muted?'OFF':'ON'}`;$('#mute').setAttribute('aria-pressed',String(audio.muted));};
 $('#quality').onclick=()=>{lowQuality=!lowQuality;view?.setQuality(lowQuality);$('#quality').textContent=`画質 ${lowQuality?'軽量':'標準'}`;$('#quality').setAttribute('aria-pressed',String(lowQuality));};
@@ -37,6 +37,6 @@ function frame(now){
   $('#phase').textContent=BALANCE[zone.collected].label;$('#caption').textContent=zone.time<zone.noticeUntil?zone.notice:'';
   $('#stamina-fill').style.width=`${p.stamina}%`;$('#breath').textContent=p.exhausted?'息を整えて…':p.locked?'向きを固定しています':'息づかい';$('#lock').setAttribute('aria-pressed',String(p.locked));$('#lock').textContent=p.locked?'固定中':'向き固定';$('#run').disabled=p.locked||zone.state!=='playing';
   $('#light').textContent=`灯り ${zone.light?'ON':'OFF'}`;$('#light').setAttribute('aria-pressed',String(zone.light));$('#interact').disabled=!near;$('#interact').textContent=near?near.kind==='key'?'鍵を拾う':near.kind==='note'?'手帳を読む':zone.collected===CONFIG.keys?'鳥居を開ける':'入口の鳥居':'調べる';
-  app.classList.toggle('pursued',zone.ghost.state==='chase'&&zone.state==='playing');requestAnimationFrame(frame);
+  app.classList.toggle('pursued',zone.ghost.state==='chase'&&zone.state==='playing');app.classList.toggle('caught',zone.state==='lost');requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

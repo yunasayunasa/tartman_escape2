@@ -1,10 +1,10 @@
-# コミット前の確認メモ
+# 公開・復元メモ
 
 2026-09-07。依頼された実装・ローカル検証を済ませ、コミット直前で停止するためのメモ。
 
 ## 対象
 `tartman_escape2/visual-zone` を独立したゲームのルートとする。親の旧版と `prototype-v2` は凍結したまま。
-現在は親を含め Git 管理外。Git 初期化、remote 設定、stage、commit、push、GitHub 公開は未実施。公開先や既存リポジトリを推測して設定していない。
+GitHubリポジトリ `yunasayunasa/tartman_escape2` の `main` で管理し、GitHub Pagesへ公開する。
 
 ## コミットに含めるファイル
 - `.gitignore`, `package.json`, `package-lock.json`, `vite.config.js`, `index.html`
@@ -18,9 +18,9 @@
 推奨コミット題名：`feat: add four forest areas, five keys, and balanced pursuit AI`
 
 ## 検証証拠
-- `npm run verify`：27テスト（鍵配置100seed、敵なし50完走を含む）、敵あり90探索、本番ビルド。
-- `validation/four-areas/result.json`：実ブラウザ10/10成功、失敗0・警告0。390×844 / 360×640 / 1280×900。
-- `validation/outcomes/result.json`：敵あり・実入力の5鍵取得、脱出、再挑戦の3/3成功。ブラウザ検証合計13/13。
+- `npm run verify`：29テスト（鍵配置100seed、敵なし50完走を含む）、敵あり90探索、本番ビルド。
+- `validation/four-areas/result.json`：実ブラウザ11/11成功、失敗0・警告0。390×844 / 360×640 / 1280×900。
+- `validation/outcomes/result.json`：敵あり・実入力の5鍵取得、脱出、再挑戦の3/3成功。ブラウザ検証合計14/14。
 - 同ディレクトリの画像：4エリア、入口、スマホ設定・道案内。
 - 詳細な調整値・自動探索結果は `BALANCE.md`。自動探索の勝率を人間の勝率とは扱わない。
 

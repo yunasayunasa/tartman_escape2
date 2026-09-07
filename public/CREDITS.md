@@ -35,4 +35,7 @@
 - 権利・再配布条件は提供者側の条件に従います。
 
 ## 音
-- Web Audio による風・足音の手続き生成。外部録音なし。
+- BGM、革靴の足音、接触音、心拍音はユーザー提供のMP3。
+- Files: `assets/audio/night-bgm.mp3`, `footsteps.mp3`, `contact.mp3`, `heartbeat.mp3`
+- 権利・再配布条件は提供者側の条件に従います。
+- ゲーム内ではWeb Audioで音量、定位、再生速度、距離減衰、遮蔽感を動的に調整。
