@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#08121a"><link rel="icon" href="data:,"><title>帰らずの森 — 五つの鍵</title></head>
+<body>
+  <main id="app" data-state="loading">
+    <div id="scene"></div><div class="vignette"></div>
+    <header><div class="identity"><span class="seal">帰</span><div><p>帰らずの森</p><small>TARTMAN ESCAPE</small></div></div><div class="actions"><span id="key-count" aria-label="鍵 0 / 5">◇ ◇ ◇ ◇ ◇</span><button id="pause" aria-label="一時停止と設定">Ⅱ</button></div></header>
+    <section class="chapter"><span id="area-number">一ノ景</span><h1 id="area-name">灯籠の小径</h1><p id="objective">鍵を五つ集め、入口の鳥居へ。</p></section>
+    <div id="caption" role="status" aria-live="polite"></div>
+    <div id="controls"><div class="stick-wrap"><button id="map-button">道案内</button><div id="stick" aria-label="移動スティック"><i></i><b id="knob"></b></div><small>歩く</small></div><div class="action-wrap"><button id="interact">調べる</button><div class="movement-buttons"><button id="light" aria-pressed="true" aria-label="懐中電灯の切り替え">灯り ON</button><button id="lock" aria-pressed="false">向き固定</button></div><button id="run">走る · 長押し</button><div class="stamina"><i id="stamina-fill"></i></div><small id="breath">息づかい</small></div></div>
+    <footer><span id="phase">静寂</span><span>五つの鍵 · 四つの場所</span></footer>
+    <section id="modal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="paper"><small id="modal-label">森の入口</small><h2 id="modal-title">灯りを、たよりに。</h2><p id="modal-text">森を読み込んでいます。</p><div id="map" hidden><div class="map-grid" id="map-grid"></div><small>北 ↑　道は外周と中央でつながっています</small></div><div id="settings" hidden><button id="mute" aria-pressed="true">音 OFF</button><button id="quality" aria-pressed="false">画質 標準</button><button id="credits">素材・操作</button></div><button id="modal-action" disabled>読み込み中…</button><a class="credit-link" href="./CREDITS.md" target="_blank" rel="noopener">素材の出典</a></div></section>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body></html>
