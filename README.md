@@ -1,6 +1,6 @@
 # 帰らずの森 — 五つの鍵
 
-承認された少女と森林素材を使った、スマホ縦持ち向けのThree.js脱出ゲーム。試作一区画を4エリアへ拡張。旧版と `prototype-v2` は保持。
+承認された少女と森林素材を使った、スマホ縦持ち向けのThree.js脱出ゲーム。4エリアのうち「灯籠の小径」は、透視投影と3D地形を使うHD-2D方式へ更新。旧版と `prototype-v2` は保持。
 
 ## 起動
 `npm install` → `npm run dev` → http://localhost:5176/
@@ -20,7 +20,7 @@
 音は初期OFF。標準画質は深度を使う控えめな被写界深度と影、軽量画質はそれらを無効化しピクセル比を1にする。タブを離れると自動停止。鍵は再挑戦ごとに再抽選。検証用に `?seed=1` のような固定配置を指定した場合のみ、再挑戦も同じ配置になる。
 
 ## 表現と再利用
-承認済みの樹木・草石・和風小物・少女を継続使用。カメラを低くして追従を追加。石段・祠の台座・岩に立体形状を使い、懐中電灯の投影影、遮蔽で切れる照射、漂う霧、ビネット、深度ぼかしを組み合わせた。少女に重なる手前の木は透過して視認性を保つ。
+承認済みの樹木・草石・和風小物・少女を継続使用。「灯籠の小径」は透視投影の低い追従カメラ、段差のある立体参道、3Dの鳥居・祠・木の幹に精細な2D意匠と樹冠を重ねる構成。月光と灯籠の投影影、遮蔽で切れる懐中電灯、漂う霧、ビネット、実深度から復元した距離ぼかしを組み合わせた。少女に重なる手前の木と幹は透過して視認性を保つ。残り3エリアは比較対象として従来方式を維持。
 
 少女8方向×8コマ、鬼8方向×7コマを提供シートから抽出。入力・合成音は一区画版から再利用。依存はThree.js 0.180.0、Vite 7.3.6のまま。追加のライブラリ・画像生成はなし。[出典](public/CREDITS.md)を同梱。
 
@@ -39,6 +39,9 @@
 
 ブラウザ検証：
 `node ../../tools/ai-harness/browser-smoke.mjs --root . --serve dist --scenario tests/browser.mjs --output validation/four-areas`
+
+灯籠の小径HD-2D検証：
+`node ../../tools/ai-harness/browser-smoke.mjs --root . --serve dist --scenario tests/browser-lantern.mjs --output validation/lantern-hd2d-final`
 
 脱出・再挑戦の通し検証：
 `node ../../tools/ai-harness/browser-smoke.mjs --root . --serve dist --scenario tests/browser-outcomes.mjs --output validation/outcomes`

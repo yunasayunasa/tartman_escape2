@@ -28,7 +28,7 @@ function refresh(){
   if(zone.state==='lost')show('夜はまだ明けない','足音が、止まった。','木立で視線を切り、別の道へ。\n走る力を使い切る前に、距離を取ろう。','もう一度、森へ',restart);
   if(zone.state==='won')show('夜明けの手前','鳥居の向こうへ。',`五つの錠前が、静かに外れた。\n振り返ると、森には何も見えなかった。\n\n探索 ${Math.floor(zone.time/60)}分${Math.floor(zone.time%60)}秒\n手帳 ${zone.notes.filter(n=>n.read).length} / ${zone.notes.length}`,'もう一度、森へ',restart);
 }
-try{view=await createRenderer($('#scene'),zone.world);app.dataset.atlas='8x8';app.dataset.enemyAtlas='8x7';$('#modal-action').disabled=false;show('四つの場所、五つの鍵','灯りを、たよりに。','森に散らばる五つの鍵を集め、入口の鳥居へ。\n最初の鍵を拾うと、遠い足音が動き出します。\n\n左のスティックで歩き、右のボタンで調べる。\n道に迷ったら、左下の「道案内」を。','森へ入る',resume);}catch(error){console.error(error);zone.state='error';$('#modal-action').disabled=false;show('読み込みエラー','森を読み込めませんでした。',error.message,'再読み込み',()=>location.reload());}
+try{view=await createRenderer($('#scene'),zone.world);app.dataset.atlas='8x8';app.dataset.enemyAtlas='8x7';app.dataset.presentation='perspective-hybrid';$('#modal-action').disabled=false;show('四つの場所、五つの鍵','灯りを、たよりに。','森に散らばる五つの鍵を集め、入口の鳥居へ。\n最初の鍵を拾うと、遠い足音が動き出します。\n\n左のスティックで歩き、右のボタンで調べる。\n道に迷ったら、左下の「道案内」を。','森へ入る',resume);}catch(error){console.error(error);zone.state='error';$('#modal-action').disabled=false;show('読み込みエラー','森を読み込めませんでした。',error.message,'再読み込み',()=>location.reload());}
 function frame(now){
   const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;update(zone,controls.input,dt);audio.update(zone,dt);zone.event=null;refresh();view?.draw(zone,dt);
   const p=zone.player,a=areaAt(p),near=zone.state==='playing'?nearestInteractable(zone):null;
