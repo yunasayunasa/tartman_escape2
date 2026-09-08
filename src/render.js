@@ -41,6 +41,9 @@ export async function createRenderer(host, world) {
   const unitCube=new THREE.BoxGeometry(1,1,1),unitColumn=new THREE.CylinderGeometry(1,1,1,8),instanceMatrix=new THREE.Matrix4(),instancePosition=new THREE.Vector3(),instanceRotation=new THREE.Quaternion(),instanceScale=new THREE.Vector3();
   function instances(material,specs,column=false){const mesh=new THREE.InstancedMesh(column?unitColumn:unitCube,material,specs.length);let cx=0,cz=0;for(let i=0;i<specs.length;i++){const [x,y,z,sx,sy,sz,rx=0,ry=0,rz=0]=specs[i];cx+=x;cz+=z;instancePosition.set(x,y,z);instanceRotation.setFromEuler(new THREE.Euler(rx,ry,rz));instanceScale.set(sx,sy,sz);instanceMatrix.compose(instancePosition,instanceRotation,instanceScale);mesh.setMatrixAt(i,instanceMatrix);}mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=false;mesh.receiveShadow=false;mesh.userData.cullPosition=new THREE.Vector3(cx/specs.length,0,cz/specs.length);scene.add(mesh);scenery.push(mesh);return mesh;}
   const pathCanvas=makeCanvas(256,256),pathContext=pathCanvas.getContext('2d');pathContext.fillStyle='#4b5b57';pathContext.fillRect(0,0,256,256);for(let i=0;i<95;i++){const x=rng()*256,y=rng()*256,w=10+rng()*28,h=7+rng()*17;pathContext.fillStyle=['#66736d','#566762','#748078','#3d504d'][Math.floor(rng()*4)];pathContext.beginPath();pathContext.ellipse(x,y,w,h,rng(),0,Math.PI*2);pathContext.fill();pathContext.strokeStyle='#263d3a88';pathContext.stroke();}const pathMap=tex(pathCanvas,true);pathMap.wrapS=pathMap.wrapT=THREE.RepeatWrapping;pathMap.repeat.set(2,1);
+  function pixelSurface(colors,lines=false){const c=makeCanvas(32,32),x=c.getContext('2d');x.imageSmoothingEnabled=false;x.fillStyle=colors[0];x.fillRect(0,0,32,32);for(let i=0;i<42;i++){const px=Math.floor(rng()*16)*2,py=Math.floor(rng()*16)*2;x.fillStyle=colors[1+Math.floor(rng()*(colors.length-1))];x.fillRect(px,py,2+(rng()>.7?2:0),lines?1+rng()*2:2+(rng()>.7?2:0));}if(lines)for(let y=5;y<32;y+=8){x.fillStyle=colors[colors.length-1];x.fillRect(0,y,32,1);}const map=tex(c);map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(2,2);return map;}
+  const hdStoneMap=pixelSurface(['#59645f','#718079','#46534f','#879087']),hdWoodMap=pixelSurface(['#50362b','#6c4937','#392820','#8b6347'],true),hdRoofMap=pixelSurface(['#2d403b','#40534c','#1d2e2b','#59655a'],true);
+  const hdStone=new THREE.MeshStandardMaterial({map:hdStoneMap,roughness:.96}),hdDarkStone=new THREE.MeshStandardMaterial({map:hdStoneMap,color:0x87918a,roughness:1}),hdWood=new THREE.MeshStandardMaterial({map:hdWoodMap,roughness:.9}),hdRedWood=new THREE.MeshStandardMaterial({map:hdWoodMap,color:0xb66f65,roughness:.86}),hdRoof=new THREE.MeshStandardMaterial({map:hdRoofMap,roughness:.8}),hdRope=new THREE.MeshStandardMaterial({map:hdWoodMap,color:0xd0b778,roughness:1});
   for(let i=0;i<11;i++){const z=52.7-i*1.05,y=terrainHeight(18,z),step=box(18,z,4.3,.13,1.12,0x79837c,Math.max(0,y-.13));step.material.map=pathMap;step.material.needsUpdate=true;}
   for(const side of [-1,1])box(18+side*2.28,47.4,.32,.55,11.8,0x405049,.02);
   const shrine3d=new THREE.Group();shrine3d.position.set(17,terrainHeight(17,44),44);scene.add(shrine3d);scenery.push(shrine3d);
@@ -53,9 +56,9 @@ export async function createRenderer(host, world) {
   fixedFacade(propMaps[1],4.25,4.25*rects[1][3]/rects[1][2],1.31,shrine3d);
   // Oku shrine keeps its detailed facade, supported by a low-cost instanced 3D silhouette.
   for(const [x,z,r] of [[46,17,2]]){const base=box(x,z,r*2,.35,r*2,0x738079);base.material.map=tileMaps.rocks;for(let i=0;i<3;i++)box(x,z+r+.3+i*.28,r*1.5,.10*(3-i),.33,0x738079);const m=billboard(propMaps[1],x,z+r+.08,r*2.5,r*2.5*rects[1][3]/rects[1][2],0xb3b9aa,.36);scenery.push(m);}
-  instances(wood,[[46,1.45,16.75,3.8,2.55,2.5]]);
-  instances(redWood,[[44.55,1.55,18.08,.18,2.8,.18],[47.45,1.55,18.08,.18,2.8,.18],[44.55,1.55,15.78,.18,2.8,.18],[47.45,1.55,15.78,.18,2.8,.18],[46,2.74,18.12,3.35,.22,.28]]);
-  instances(roof,[[46,3.05,16.25,4.45,.18,1.75,.34,0,0],[46,3.05,17.35,4.45,.18,1.75,-.34,0,0],[46,3.48,16.78,4.8,.16,.3]]);
+  instances(hdWood,[[46,1.45,16.75,3.8,2.55,2.5]]);
+  instances(hdRedWood,[[44.55,1.55,18.08,.18,2.8,.18],[47.45,1.55,18.08,.18,2.8,.18],[44.55,1.55,15.78,.18,2.8,.18],[47.45,1.55,15.78,.18,2.8,.18],[46,2.74,18.12,3.35,.22,.28]]);
+  instances(hdRoof,[[46,3.05,16.25,4.45,.18,1.75,.34,0,0],[46,3.05,17.35,4.45,.18,1.75,-.34,0,0],[46,3.48,16.78,4.8,.16,.3]]);
   const gate=new THREE.Group();gate.position.set(START.x,terrainHeight(START.x,START.z-1.7),START.z-1.7);scene.add(gate);scenery.push(gate);
   for(const x of [-1.75,1.75]){volume(new THREE.CylinderGeometry(.19,.27,3.75,12),redWood,x,1.88,0,gate);volume(new THREE.CylinderGeometry(.34,.41,.27,12),darkStone,x,.14,0,gate);}
   volume(new THREE.BoxGeometry(4.25,.29,.36),redWood,0,3.5,0,gate);volume(new THREE.BoxGeometry(4.55,.24,.44),redWood,0,3.92,0,gate);volume(new THREE.BoxGeometry(3.55,.18,.28),wood,0,3.08,0,gate);
@@ -68,16 +71,16 @@ export async function createRenderer(host, world) {
   for(let i=0;i<25;i++){const x=42+(rng()-.5)*4.5,z=46+(rng()-.5)*6;if(!inPond(x,z))continue;const m=new THREE.Mesh(new THREE.PlaneGeometry(.2+rng()*.65,.02),new THREE.MeshBasicMaterial({color:0x8bb6bc,transparent:true,opacity:.3}));m.rotation.x=-Math.PI/2;m.position.set(x,.024,z);m.userData.phase=rng()*6;scene.add(m);ripples.push(m);}
   // Water Mirror Pond: a raised timber lookout and stone bank make the water read in perspective.
   const bridgePlanks=[];for(let i=0;i<8;i++)bridgePlanks.push([44.25+i*.48,.17,47.05,.43,.16,1.35,0,(i%2?-.018:.018),0]);
-  instances(wood,bridgePlanks);
-  instances(darkStone,Array.from({length:14},(_,i)=>{const a=(-.72+i/13*1.44)*Math.PI,x=42+Math.cos(a)*3.02,z=46+Math.sin(a)*4.12;return[x,.13,z,.48,.25,.42,0,-a,0];}));
-  instances(redWood,[[44.25,.78,46.35,.075,1.4,.075],[45.85,.78,46.35,.075,1.4,.075],[47.55,.78,46.35,.075,1.4,.075],[44.25,.78,47.75,.075,1.4,.075],[45.85,.78,47.75,.075,1.4,.075],[47.55,.78,47.75,.075,1.4,.075]],true);
-  instances(rope,[[45.9,1.18,46.35,.045,3.3,.045,0,0,Math.PI/2],[45.9,1.18,47.75,.045,3.3,.045,0,0,Math.PI/2]],true);
+  instances(hdWood,bridgePlanks);
+  instances(hdDarkStone,Array.from({length:14},(_,i)=>{const a=(-.72+i/13*1.44)*Math.PI,x=42+Math.cos(a)*3.02,z=46+Math.sin(a)*4.12;return[x,.13,z,.48,.25,.42,0,-a,0];}));
+  instances(hdRedWood,[[44.25,.78,46.35,.075,1.4,.075],[45.85,.78,46.35,.075,1.4,.075],[47.55,.78,46.35,.075,1.4,.075],[44.25,.78,47.75,.075,1.4,.075],[45.85,.78,47.75,.075,1.4,.075],[47.55,.78,47.75,.075,1.4,.075]],true);
+  instances(hdRope,[[45.9,1.18,46.35,.045,3.3,.045,0,0,Math.PI/2],[45.9,1.18,47.75,.045,3.3,.045,0,0,Math.PI/2]],true);
   // Cedar Approach: repeated slabs and paired posts create depth with four draw calls.
   const cedarSlabs=[];for(let i=0;i<12;i++)cedarSlabs.push([18+(i%2?.08:-.08),.055,12.2+i*1.02,2.15,.11,.76,0,(i%3-1)*.025,0]);
-  instances(stone,cedarSlabs);
-  instances(darkStone,[[16.55,.28,13.1,.38,.56,.38],[19.45,.28,13.1,.38,.56,.38],[16.55,.28,17.1,.38,.56,.38],[19.45,.28,17.1,.38,.56,.38],[16.55,.28,21.1,.38,.56,.38],[19.45,.28,21.1,.38,.56,.38]]);
-  instances(wood,[[16.55,1.45,13.1,.13,2.35,.13],[19.45,1.45,13.1,.13,2.35,.13],[16.55,1.45,17.1,.13,2.35,.13],[19.45,1.45,17.1,.13,2.35,.13],[16.55,1.45,21.1,.13,2.35,.13],[19.45,1.45,21.1,.13,2.35,.13]],true);
-  instances(rope,[[18,2.25,13.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,17.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,21.1,.04,3.05,.04,0,0,Math.PI/2]],true);
+  instances(hdStone,cedarSlabs);
+  instances(hdDarkStone,[[16.55,.28,13.1,.38,.56,.38],[19.45,.28,13.1,.38,.56,.38],[16.55,.28,17.1,.38,.56,.38],[19.45,.28,17.1,.38,.56,.38],[16.55,.28,21.1,.38,.56,.38],[19.45,.28,21.1,.38,.56,.38]]);
+  instances(hdWood,[[16.55,1.45,13.1,.13,2.35,.13],[19.45,1.45,13.1,.13,2.35,.13],[16.55,1.45,17.1,.13,2.35,.13],[19.45,1.45,17.1,.13,2.35,.13],[16.55,1.45,21.1,.13,2.35,.13],[19.45,1.45,21.1,.13,2.35,.13]],true);
+  instances(hdRope,[[18,2.25,13.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,17.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,21.1,.04,3.05,.04,0,0,Math.PI/2]],true);
   // Trees occupy impassable ground; this same footprint blocks AI vision.
   for(let z=3;z<62;z+=1.65)for(let x=3;x<62;x+=1.65){if(walkable(world,x,z,.55)||inPond(x,z)||rng()<.27||world.segments.some(([a,b])=>segmentDistance({x,z},a,b)<3.35))continue;if((distance({x,z},{x:17,z:44})<2.8)||(distance({x,z},{x:46,z:17})<3))continue;const cedar=distance({x,z},AREAS[2])<12||rng()<.3,h=4.4+rng()*2.6,px=x+(rng()-.5)*.3,pz=z+(rng()-.5)*.3,py=terrainHeight(px,pz);if(distance({x:px,z:pz},AREAS[0])<13){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16,.27,Math.min(3.2,h*.55),9),new THREE.MeshStandardMaterial({color:cedar?0x354039:0x4b4134,roughness:1,transparent:true}));trunk.position.set(px,py+trunk.geometry.parameters.height/2,pz);trunk.castShadow=true;trunk.receiveShadow=true;scene.add(trunk);trunks.push(trunk);scenery.push(trunk);}const m=billboard(cedar?tallMap:broadMap,px,pz,h*(cedar?.53:1.01),h,new THREE.Color().setHSL(.46,.16,.42+rng()*.15),py);m.castShadow=false;trees.push(m);scenery.push(m);}
   for(let i=0;i<550;i++){const x=5+rng()*55,z=5+rng()*55;if(inPond(x,z)||POINTS.some(p=>distance(p,{x,z})<1.1)||distance(START,{x,z})<2)continue;const edge=walkable(world,x,z,0)&&!walkable(world,x,z,1.2);if(!edge&&rng()<.8)continue;const kind=['fern','bush','shrub','stone','log'][Math.floor(rng()*5)],r=FOREST[kind],w=.35+rng()*.65;scenery.push(billboard(tileMaps[kind],x,z,w,w*r[3]/r[2],0x8fa394));}
@@ -104,7 +107,7 @@ export async function createRenderer(host, world) {
   let lightQuality=false,renderScale=mobile?.72:.82,slowFrames=0;
   function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.fov=h>w?47:41;camera.updateProjectionMatrix();renderer.setSize(w,h);const pr=renderer.getPixelRatio(),tw=Math.round(w*pr*renderScale),th=Math.round(h*pr*renderScale);target.setSize(tw,th);post.uniforms.resolution.value.set(tw,th);host.dataset.renderScale=String(renderScale);}
   new ResizeObserver(resize).observe(host);resize();
-  for(const map of [...Object.values(tileMaps),broadMap,tallMap,...propMaps,atlas.map,enemy.map,keyMap,noteMap,shadowMap,warmMap,fogMap,pathMap])renderer.initTexture(map);
+  for(const map of [...Object.values(tileMaps),broadMap,tallMap,...propMaps,atlas.map,enemy.map,keyMap,noteMap,shadowMap,warmMap,fogMap,pathMap,hdStoneMap,hdWoodMap,hdRoofMap])renderer.initTexture(map);
   if(renderer.compileAsync)await renderer.compileAsync(scene,camera);else renderer.compile(scene,camera);host.dataset.prewarmed='true';
   const screen=new THREE.Vector3(),tempFocus=new THREE.Vector3(),bottom=new THREE.Vector3(),top=new THREE.Vector3(),q=new THREE.Vector3();
   return {atlas,enemy,rects,setQuality(low){lightQuality=low;renderer.setPixelRatio(low?1:qualityRatio());renderer.shadowMap.enabled=!low;renderScale=low?1:(mobile?.72:.82);resize();},reset(g){focus.set(g.player.x,0,g.player.z-2);},draw(g,dt){
