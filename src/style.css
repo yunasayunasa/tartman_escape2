@@ -11,3 +11,4 @@ html,body,#app,#controls,#controls *{-webkit-user-select:none;user-select:none;-
 .caught .blood-fade{opacity:1;transition:opacity .16s ease-out}
 .caught .vignette{box-shadow:inset 0 0 130px #58020ae8}
 @media(max-width:600px){button{font-size:16px}#controls button{font-size:12px}}
+.volume-settings{flex:1 0 100%;display:grid;gap:8px;padding:11px 13px;background:#07171dcc;border:1px solid #83978932;text-align:left}.volume-settings label{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;font:10px sans-serif;color:#b7c5be;letter-spacing:.05em}.volume-settings output{font-variant-numeric:tabular-nums;color:#ddc996}.volume-settings input{grid-column:1/-1;width:100%;height:18px;margin:0;accent-color:#c5ad72;touch-action:pan-x}.identity p{letter-spacing:.12em}.identity small{letter-spacing:.16em}

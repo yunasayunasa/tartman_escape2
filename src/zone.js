@@ -23,11 +23,11 @@ export const STORIES = Object.freeze([
 ]);
 export const BALANCE = Object.freeze([
   { label: '静寂', sight: 0, chase: 0, reaction: 0, search: 0, hearing: 0, pressure: Infinity },
-  { label: '気配', sight: 7.0, chase: 2.48, reaction: .85, search: 3.4, hearing: 4.6, pressure: Infinity },
-  { label: '足音', sight: 7.5, chase: 2.62, reaction: .75, search: 3.8, hearing: 5.0, pressure: Infinity },
-  { label: '接近', sight: 8.0, chase: 2.76, reaction: .65, search: 4.2, hearing: 5.4, pressure: 30 },
-  { label: '追慕', sight: 8.5, chase: 2.90, reaction: .55, search: 4.6, hearing: 5.8, pressure: 24 },
-  { label: '帰路', sight: 9.0, chase: 3.04, reaction: .48, search: 5.0, hearing: 6.2, pressure: 20 },
+  { label: '気配', sight: 7.4, chase: 2.56, reaction: .76, search: 3.7, hearing: 4.9, pressure: Infinity },
+  { label: '足音', sight: 8.1, chase: 2.72, reaction: .64, search: 4.2, hearing: 5.4, pressure: Infinity },
+  { label: '接近', sight: 8.9, chase: 2.90, reaction: .52, search: 4.8, hearing: 5.9, pressure: 24 },
+  { label: '追慕', sight: 9.7, chase: 3.12, reaction: .42, search: 5.4, hearing: 6.5, pressure: 20 },
+  { label: '帰路', sight: 10.5, chase: 3.34, reaction: .34, search: 6.0, hearing: 7.1, pressure: 16 },
 ]);
 export const random = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
