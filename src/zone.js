@@ -22,12 +22,12 @@ export const STORIES = Object.freeze([
   { x: 21, z: 16, title: '折り畳まれた手紙', text: '「足音が二つ聞こえたら、走らないで。\n三つ聞こえたら、もう振り返らないで。」\n\n差出人の名は、黒く塗り潰されている。' },
 ]);
 export const BALANCE = Object.freeze([
-  { label: '静寂', sight: 0, chase: 0, reaction: 0, search: 0, hearing: 0 },
-  { label: '気配', sight: 7.0, chase: 2.48, reaction: .85, search: 3.4, hearing: 4.6 },
-  { label: '足音', sight: 7.5, chase: 2.62, reaction: .75, search: 3.8, hearing: 5.0 },
-  { label: '接近', sight: 8.0, chase: 2.76, reaction: .65, search: 4.2, hearing: 5.4 },
-  { label: '追慕', sight: 8.5, chase: 2.90, reaction: .55, search: 4.6, hearing: 5.8 },
-  { label: '帰路', sight: 9.0, chase: 3.04, reaction: .48, search: 5.0, hearing: 6.2 },
+  { label: '静寂', sight: 0, chase: 0, reaction: 0, search: 0, hearing: 0, pressure: Infinity },
+  { label: '気配', sight: 7.0, chase: 2.48, reaction: .85, search: 3.4, hearing: 4.6, pressure: Infinity },
+  { label: '足音', sight: 7.5, chase: 2.62, reaction: .75, search: 3.8, hearing: 5.0, pressure: Infinity },
+  { label: '接近', sight: 8.0, chase: 2.76, reaction: .65, search: 4.2, hearing: 5.4, pressure: 30 },
+  { label: '追慕', sight: 8.5, chase: 2.90, reaction: .55, search: 4.6, hearing: 5.8, pressure: 24 },
+  { label: '帰路', sight: 9.0, chase: 3.04, reaction: .48, search: 5.0, hearing: 6.2, pressure: 20 },
 ]);
 export const random = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -65,7 +65,7 @@ export function createZone(seed=Date.now()) {
   const rng=random(seed),keys=[];
   for(let area=0;area<AREAS.length;area++){const candidates=POINTS.filter(p=>p.area===area);keys.push({...candidates[Math.floor(rng()*candidates.length)],taken:false});}
   const extras=POINTS.filter(p=>p.area!==0&&!keys.some(k=>k.x===p.x&&k.z===p.z));keys.push({...extras[Math.floor(rng()*extras.length)],taken:false});
-  return { world:makeWorld(),seed,rng,state:'ready',time:0,player:{...START,facing:Math.PI,stamina:100,locked:false,exhausted:false,moving:false,running:false,recovery:0},keys,collected:0,notes:STORIES.map(n=>({...n,read:false})),light:true,spawnAt:null,ghost:{x:0,z:0,state:'absent',facing:0,path:[],target:null,repath:0,memory:0,awareness:0,chaseTime:0,cooldown:0,hearAt:0,moving:false},event:null,notice:'鍵を五つ集め、入口の鳥居へ。',noticeUntil:7 };
+  return { world:makeWorld(),seed,rng,state:'ready',time:0,player:{...START,facing:Math.PI,stamina:100,locked:false,exhausted:false,moving:false,running:false,recovery:0},keys,collected:0,notes:STORIES.map(n=>({...n,read:false})),light:true,spawnAt:null,ghost:{x:0,z:0,state:'absent',facing:0,path:[],target:null,repath:0,memory:0,awareness:0,chaseTime:0,cooldown:0,hearAt:0,unseen:0,moving:false},event:null,notice:'鍵を五つ集め、入口の鳥居へ。',noticeUntil:7 };
 }
 export function say(g,text,seconds=5){g.notice=text;g.noticeUntil=g.time+seconds;}
 export function nearestInteractable(g){
@@ -86,14 +86,20 @@ export function updateEnemy(g,dt){
     if(g.spawnAt===null||g.time<g.spawnAt)return;
     const safe=POINTS.filter(q=>distance(q,p)>16&&!lineOfSight(g.world,p,q));
     if(!safe.length){g.spawnAt=g.time+1;return;}
-    const spawn=safe[Math.floor(g.rng()*safe.length)];e.x=spawn.x;e.z=spawn.z;e.state='patrol';e.target=null;g.event='arrival';say(g,'遠い足音が、森を歩き始めた。',6);
+    const spawn=safe[Math.floor(g.rng()*safe.length)];e.x=spawn.x;e.z=spawn.z;e.state='patrol';e.target=null;e.unseen=0;g.event='arrival';say(g,'遠い足音が、森を歩き始めた。',6);
   }
   e.cooldown=Math.max(0,e.cooldown-dt);
-  const d=distance(e,p),visible=lineOfSight(g.world,e,p),range=g.light?b.sight:b.sight*.66;
+  let d=distance(e,p),visible=lineOfSight(g.world,e,p);e.unseen=e.state==='chase'?0:e.unseen+dt;
+  // At high key counts, prolonged calm moves the threat to the nearest fair, off-screen route.
+  if(e.state!=='chase'&&e.unseen>=b.pressure&&d>14){
+    const candidates=[];for(let z=2;z<g.world.size-2;z++)for(let x=2;x<g.world.size-2;x++){const q={x,z},range=distance(q,p);if(range>=10&&range<=14&&walkable(g.world,x,z)&&!lineOfSight(g.world,p,q))candidates.push(q);}
+    candidates.sort((a,c)=>distance(a,p)-distance(c,p));const q=candidates[0];if(q){e.x=q.x;e.z=q.z;e.state='search';e.memory=b.search+2;e.path=[];e.repath=0;e.awareness=0;e.cooldown=0;e.unseen=0;target(e,p);g.event='pressure';say(g,'近くで、湿った枝が折れた。',4);d=distance(e,p);visible=false;}
+  }
+  const range=g.light?b.sight:b.sight*.66;
   const sees=d<range&&visible&&(e.cooldown===0||d<1.8);
   e.awareness=sees?Math.min(1,e.awareness+dt/Math.max(.1,b.reaction)):Math.max(0,e.awareness-dt*1.8);
   if(sees&&(e.awareness>=1||d<1.4)){
-    if(e.state!=='chase'){g.event='chase';e.chaseTime=0;}
+    if(e.state!=='chase'){g.event='chase';e.chaseTime=0;}e.unseen=0;
     e.state='chase';e.target={x:p.x,z:p.z};e.memory=b.search;
   }else if(e.state==='chase'){e.state='search';e.memory=b.search;e.repath=0;}
   // Hearing records the noise location, never a hidden player's ongoing position.
