@@ -36,8 +36,10 @@ export async function createRenderer(host, world) {
   function box(x,z,w,h,d,color,y=0){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));m.position.set(x,y+h/2,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);scenery.push(m);return m;}
   function volume(geometry,material,x,y,z,group){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
   function fixedFacade(map,w,h,z,group){const mat=new THREE.MeshBasicMaterial({map,color:0xb8b4a7,transparent:true,alphaTest:.14,side:THREE.DoubleSide});const m=new THREE.Mesh(plane,mat);m.scale.set(w,h,1);m.position.set(0,.02,z);m.castShadow=false;group.add(m);return m;}
-  // Lantern Path: an actual raised stone approach, while the remaining areas keep their established flat treatment.
+  // Reused geometry and materials keep the four HD-2D landmarks inexpensive on mobile.
   const stone=new THREE.MeshStandardMaterial({color:0x59655f,roughness:.94,metalness:0}),darkStone=new THREE.MeshStandardMaterial({color:0x3f4d49,roughness:1}),wood=new THREE.MeshStandardMaterial({color:0x482e26,roughness:.88}),redWood=new THREE.MeshStandardMaterial({color:0x743b31,roughness:.82}),roof=new THREE.MeshStandardMaterial({color:0x283d39,roughness:.72}),rope=new THREE.MeshStandardMaterial({color:0x9d8653,roughness:1});
+  const unitCube=new THREE.BoxGeometry(1,1,1),unitColumn=new THREE.CylinderGeometry(1,1,1,8),instanceMatrix=new THREE.Matrix4(),instancePosition=new THREE.Vector3(),instanceRotation=new THREE.Quaternion(),instanceScale=new THREE.Vector3();
+  function instances(material,specs,column=false){const mesh=new THREE.InstancedMesh(column?unitColumn:unitCube,material,specs.length);let cx=0,cz=0;for(let i=0;i<specs.length;i++){const [x,y,z,sx,sy,sz,rx=0,ry=0,rz=0]=specs[i];cx+=x;cz+=z;instancePosition.set(x,y,z);instanceRotation.setFromEuler(new THREE.Euler(rx,ry,rz));instanceScale.set(sx,sy,sz);instanceMatrix.compose(instancePosition,instanceRotation,instanceScale);mesh.setMatrixAt(i,instanceMatrix);}mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=false;mesh.receiveShadow=false;mesh.userData.cullPosition=new THREE.Vector3(cx/specs.length,0,cz/specs.length);scene.add(mesh);scenery.push(mesh);return mesh;}
   const pathCanvas=makeCanvas(256,256),pathContext=pathCanvas.getContext('2d');pathContext.fillStyle='#4b5b57';pathContext.fillRect(0,0,256,256);for(let i=0;i<95;i++){const x=rng()*256,y=rng()*256,w=10+rng()*28,h=7+rng()*17;pathContext.fillStyle=['#66736d','#566762','#748078','#3d504d'][Math.floor(rng()*4)];pathContext.beginPath();pathContext.ellipse(x,y,w,h,rng(),0,Math.PI*2);pathContext.fill();pathContext.strokeStyle='#263d3a88';pathContext.stroke();}const pathMap=tex(pathCanvas,true);pathMap.wrapS=pathMap.wrapT=THREE.RepeatWrapping;pathMap.repeat.set(2,1);
   for(let i=0;i<11;i++){const z=52.7-i*1.05,y=terrainHeight(18,z),step=box(18,z,4.3,.13,1.12,0x79837c,Math.max(0,y-.13));step.material.map=pathMap;step.material.needsUpdate=true;}
   for(const side of [-1,1])box(18+side*2.28,47.4,.32,.55,11.8,0x405049,.02);
@@ -49,8 +51,11 @@ export async function createRenderer(host, world) {
   volume(new THREE.CylinderGeometry(.13,.13,4.12,8),roof,0,3.45,0,shrine3d).rotation.z=Math.PI/2;
   for(let i=0;i<4;i++)box(17,46.05+i*.34,3.25,.10*(4-i),.38,0x707c75,terrainHeight(17,46.05+i*.34)-.02);
   fixedFacade(propMaps[1],4.25,4.25*rects[1][3]/rects[1][2],1.31,shrine3d);
-  // The second shrine intentionally remains sprite-based for this one-area comparison.
+  // Oku shrine keeps its detailed facade, supported by a low-cost instanced 3D silhouette.
   for(const [x,z,r] of [[46,17,2]]){const base=box(x,z,r*2,.35,r*2,0x738079);base.material.map=tileMaps.rocks;for(let i=0;i<3;i++)box(x,z+r+.3+i*.28,r*1.5,.10*(3-i),.33,0x738079);const m=billboard(propMaps[1],x,z+r+.08,r*2.5,r*2.5*rects[1][3]/rects[1][2],0xb3b9aa,.36);scenery.push(m);}
+  instances(wood,[[46,1.45,16.75,3.8,2.55,2.5]]);
+  instances(redWood,[[44.55,1.55,18.08,.18,2.8,.18],[47.45,1.55,18.08,.18,2.8,.18],[44.55,1.55,15.78,.18,2.8,.18],[47.45,1.55,15.78,.18,2.8,.18],[46,2.74,18.12,3.35,.22,.28]]);
+  instances(roof,[[46,3.05,16.25,4.45,.18,1.75,.34,0,0],[46,3.05,17.35,4.45,.18,1.75,-.34,0,0],[46,3.48,16.78,4.8,.16,.3]]);
   const gate=new THREE.Group();gate.position.set(START.x,terrainHeight(START.x,START.z-1.7),START.z-1.7);scene.add(gate);scenery.push(gate);
   for(const x of [-1.75,1.75]){volume(new THREE.CylinderGeometry(.19,.27,3.75,12),redWood,x,1.88,0,gate);volume(new THREE.CylinderGeometry(.34,.41,.27,12),darkStone,x,.14,0,gate);}
   volume(new THREE.BoxGeometry(4.25,.29,.36),redWood,0,3.5,0,gate);volume(new THREE.BoxGeometry(4.55,.24,.44),redWood,0,3.92,0,gate);volume(new THREE.BoxGeometry(3.55,.18,.28),wood,0,3.08,0,gate);
@@ -61,6 +66,18 @@ export async function createRenderer(host, world) {
   const water=new THREE.Mesh(new THREE.CircleGeometry(1,80),new THREE.MeshPhongMaterial({color:0x234752,shininess:70,specular:0x597c87}));water.rotation.x=-Math.PI/2;water.scale.set(2.7,3.8,1);water.position.set(42,.015,46);scene.add(water);
   for(let i=0;i<64;i++){const a=i/64*Math.PI*2,x=42+Math.cos(a)*2.8,z=46+Math.sin(a)*3.9;const m=billboard(tileMaps.rocks,x,z,.45+rng()*.3,.35+rng()*.25,0x95aaa0);scenery.push(m);}
   for(let i=0;i<25;i++){const x=42+(rng()-.5)*4.5,z=46+(rng()-.5)*6;if(!inPond(x,z))continue;const m=new THREE.Mesh(new THREE.PlaneGeometry(.2+rng()*.65,.02),new THREE.MeshBasicMaterial({color:0x8bb6bc,transparent:true,opacity:.3}));m.rotation.x=-Math.PI/2;m.position.set(x,.024,z);m.userData.phase=rng()*6;scene.add(m);ripples.push(m);}
+  // Water Mirror Pond: a raised timber lookout and stone bank make the water read in perspective.
+  const bridgePlanks=[];for(let i=0;i<8;i++)bridgePlanks.push([44.25+i*.48,.17,47.05,.43,.16,1.35,0,(i%2?-.018:.018),0]);
+  instances(wood,bridgePlanks);
+  instances(darkStone,Array.from({length:14},(_,i)=>{const a=(-.72+i/13*1.44)*Math.PI,x=42+Math.cos(a)*3.02,z=46+Math.sin(a)*4.12;return[x,.13,z,.48,.25,.42,0,-a,0];}));
+  instances(redWood,[[44.25,.78,46.35,.075,1.4,.075],[45.85,.78,46.35,.075,1.4,.075],[47.55,.78,46.35,.075,1.4,.075],[44.25,.78,47.75,.075,1.4,.075],[45.85,.78,47.75,.075,1.4,.075],[47.55,.78,47.75,.075,1.4,.075]],true);
+  instances(rope,[[45.9,1.18,46.35,.045,3.3,.045,0,0,Math.PI/2],[45.9,1.18,47.75,.045,3.3,.045,0,0,Math.PI/2]],true);
+  // Cedar Approach: repeated slabs and paired posts create depth with four draw calls.
+  const cedarSlabs=[];for(let i=0;i<12;i++)cedarSlabs.push([18+(i%2?.08:-.08),.055,12.2+i*1.02,2.15,.11,.76,0,(i%3-1)*.025,0]);
+  instances(stone,cedarSlabs);
+  instances(darkStone,[[16.55,.28,13.1,.38,.56,.38],[19.45,.28,13.1,.38,.56,.38],[16.55,.28,17.1,.38,.56,.38],[19.45,.28,17.1,.38,.56,.38],[16.55,.28,21.1,.38,.56,.38],[19.45,.28,21.1,.38,.56,.38]]);
+  instances(wood,[[16.55,1.45,13.1,.13,2.35,.13],[19.45,1.45,13.1,.13,2.35,.13],[16.55,1.45,17.1,.13,2.35,.13],[19.45,1.45,17.1,.13,2.35,.13],[16.55,1.45,21.1,.13,2.35,.13],[19.45,1.45,21.1,.13,2.35,.13]],true);
+  instances(rope,[[18,2.25,13.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,17.1,.04,3.05,.04,0,0,Math.PI/2],[18,2.25,21.1,.04,3.05,.04,0,0,Math.PI/2]],true);
   // Trees occupy impassable ground; this same footprint blocks AI vision.
   for(let z=3;z<62;z+=1.65)for(let x=3;x<62;x+=1.65){if(walkable(world,x,z,.55)||inPond(x,z)||rng()<.27||world.segments.some(([a,b])=>segmentDistance({x,z},a,b)<3.35))continue;if((distance({x,z},{x:17,z:44})<2.8)||(distance({x,z},{x:46,z:17})<3))continue;const cedar=distance({x,z},AREAS[2])<12||rng()<.3,h=4.4+rng()*2.6,px=x+(rng()-.5)*.3,pz=z+(rng()-.5)*.3,py=terrainHeight(px,pz);if(distance({x:px,z:pz},AREAS[0])<13){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16,.27,Math.min(3.2,h*.55),9),new THREE.MeshStandardMaterial({color:cedar?0x354039:0x4b4134,roughness:1,transparent:true}));trunk.position.set(px,py+trunk.geometry.parameters.height/2,pz);trunk.castShadow=true;trunk.receiveShadow=true;scene.add(trunk);trunks.push(trunk);scenery.push(trunk);}const m=billboard(cedar?tallMap:broadMap,px,pz,h*(cedar?.53:1.01),h,new THREE.Color().setHSL(.46,.16,.42+rng()*.15),py);m.castShadow=false;trees.push(m);scenery.push(m);}
   for(let i=0;i<550;i++){const x=5+rng()*55,z=5+rng()*55;if(inPond(x,z)||POINTS.some(p=>distance(p,{x,z})<1.1)||distance(START,{x,z})<2)continue;const edge=walkable(world,x,z,0)&&!walkable(world,x,z,1.2);if(!edge&&rng()<.8)continue;const kind=['fern','bush','shrub','stone','log'][Math.floor(rng()*5)],r=FOREST[kind],w=.35+rng()*.65;scenery.push(billboard(tileMaps[kind],x,z,w,w*r[3]/r[2],0x8fa394));}
@@ -94,7 +111,7 @@ export async function createRenderer(host, world) {
     const p=g.player,e=g.ghost,playerY=terrainHeight(p.x,p.z);focus.lerp(tempFocus.set(p.x,playerY+.35,p.z-4),1-Math.exp(-dt*4.2));camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);
     const dir=((Math.round(p.facing/(Math.PI/4))%8)+8)%8,row=atlas.directionRows[dir],frame=p.moving?Math.floor(g.time*(p.running?12:8))%8:0;atlas.map.offset.set(frame/8,1-(row+1)/8);actor.position.set(p.x,playerY+.06,p.z);playerShadow.position.set(p.x,playerY+.025,p.z);
     ghost.visible=e.state!=='absent'&&distance(e,p)<21;ghostShadow.visible=ghost.visible;if(ghost.visible){const er=((Math.round(e.facing/(Math.PI/4))%8)+8)%8,ef=e.moving?Math.floor(g.time*(e.state==='chase'?10:6))%7:0;enemy.map.offset.set(ef/7,1-(er+1)/8);ghost.position.set(e.x,.06,e.z);ghostShadow.position.set(e.x,.025,e.z);}
-    for(const m of scenery)m.visible=Math.abs(m.position.x-focus.x)<22&&Math.abs(m.position.z-focus.z)<26;
+    for(const m of scenery){const c=m.userData.cullPosition||m.position;m.visible=Math.abs(c.x-focus.x)<22&&Math.abs(c.z-focus.z)<26;}
     screen.set(p.x,.7,p.z).project(camera);
     for(const m of trees){if(!m.visible)continue;m.updateMatrixWorld();bottom.set(-.5,0,0).applyMatrix4(m.matrixWorld).project(camera);top.set(.5,1,0).applyMatrix4(m.matrixWorld).project(camera);const obscures=m.position.z>p.z&&screen.x>bottom.x-.05&&screen.x<top.x+.05&&screen.y>bottom.y-.08&&screen.y<top.y+.08;m.material.opacity=obscures?.065:1;m.material.depthWrite=!obscures;}
     for(const m of trunks){if(!m.visible)continue;q.copy(m.position).project(camera);const obscures=m.position.z>p.z&&Math.abs(q.x-screen.x)<.16&&Math.abs(q.y-screen.y)<.32;m.material.opacity=obscures?.06:1;m.material.depthWrite=!obscures;}
