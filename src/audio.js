@@ -8,6 +8,9 @@ export class ForestAudio {
   constructor(){
     this.muted=false;this.suspended=true;this.stepAt=0;this.enemyStep=0;
     try{this.levels={...DEFAULT_LEVELS,...JSON.parse(localStorage.getItem('tartman-audio-levels')||'{}')};}catch{this.levels={...DEFAULT_LEVELS};}
+    const names=['footsteps','contact','heartbeat'];
+    this.encoded=Promise.all(names.map(async name=>[name,await(await fetch(asset(name))).arrayBuffer()]));
+    this.musicElement=new Audio(asset('night-bgm'));this.musicElement.loop=true;this.musicElement.preload='auto';this.musicElement.load();
   }
   async start(){
     if(!this.ctx){
@@ -17,14 +20,13 @@ export class ForestAudio {
       this.musicGain=this.ctx.createGain();this.musicFilter.connect(this.musicGain);this.musicGain.connect(this.master);
       this.effects=this.ctx.createGain();this.effects.connect(this.master);
       this.heartBus=this.ctx.createGain();this.heartBus.connect(this.master);
-      const names=['footsteps','night-bgm','contact','heartbeat'];
-      const decoded=await Promise.all(names.map(async name=>this.ctx.decodeAudioData(await(await fetch(asset(name))).arrayBuffer())));
-      this.buffers=Object.fromEntries(names.map((name,i)=>[name,decoded[i]]));
-      this.bgm=this.ctx.createBufferSource();this.bgm.buffer=this.buffers['night-bgm'];this.bgm.loop=true;this.bgm.connect(this.musicFilter);this.bgm.start();
-      this.heart=this.ctx.createBufferSource();this.heart.buffer=this.buffers.heartbeat;this.heart.loop=true;this.heartGain=this.ctx.createGain();this.heartGain.gain.value=0;this.heart.connect(this.heartGain);this.heartGain.connect(this.heartBus);this.heart.start();
+      this.bgm=this.ctx.createMediaElementSource(this.musicElement);this.bgm.connect(this.musicFilter);
+      this.heartGain=this.ctx.createGain();this.heartGain.gain.value=0;this.heartGain.connect(this.heartBus);
       this.applyLevels();
     }
-    await this.ctx.resume();this.applyMaster(.08);
+    const resume=this.ctx.resume(),music=this.musicElement.play();
+    if(!this.ready)this.ready=(async()=>{const encoded=await this.encoded,decoded=await Promise.all(encoded.map(([,data])=>this.ctx.decodeAudioData(data)));this.buffers=Object.fromEntries(encoded.map(([name],i)=>[name,decoded[i]]));this.heart=this.ctx.createBufferSource();this.heart.buffer=this.buffers.heartbeat;this.heart.loop=true;this.heart.connect(this.heartGain);this.heart.start();})();
+    await Promise.all([resume,music,this.ready]);this.applyMaster(.08);
   }
   getLevels(){return {...this.levels};}
   setLevel(name,value){if(!(name in DEFAULT_LEVELS))return;this.levels[name]=clamp(value);try{localStorage.setItem('tartman-audio-levels',JSON.stringify(this.levels));}catch{}this.applyLevels();}
