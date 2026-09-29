@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { load, tex, crop, makeCanvas, FOREST } from './assets.js';
-import { random, inPond, START, AREAS, POINTS, STORIES, distance, walkable } from './zone.js';
+import { random, inPond, START, AREAS, STORIES, URA_AREA, LANTERNS, SANCTUARY, MIRROR, distance, walkable } from './zone.js';
 
-export async function createRenderer(host, world) {
+export async function createRenderer(host, zone) {
+  const world=zone.world,POINTS=zone.points;
   const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
   const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<=600,qualityRatio=()=>Math.min(devicePixelRatio,mobile?1.2:1.35);
   renderer.setPixelRatio(qualityRatio());renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -72,6 +73,17 @@ export async function createRenderer(host, world) {
   instances(hdDarkStone,Array.from({length:14},(_,i)=>{const a=(-.72+i/13*1.44)*Math.PI,x=42+Math.cos(a)*3.02,z=46+Math.sin(a)*4.12;return[x,.13,z,.48,.25,.42,0,-a,0];}));
   instances(hdRedWood,[[44.25,.78,46.35,.075,1.4,.075],[45.85,.78,46.35,.075,1.4,.075],[47.55,.78,46.35,.075,1.4,.075],[44.25,.78,47.75,.075,1.4,.075],[45.85,.78,47.75,.075,1.4,.075],[47.55,.78,47.75,.075,1.4,.075]],true);
   instances(hdRope,[[45.9,1.18,46.35,.045,3.3,.045,0,0,Math.PI/2],[45.9,1.18,47.75,.045,3.3,.045,0,0,Math.PI/2]],true);
+  // Unlit lanterns: the prop dims when dark or spent; when lit, a warm circle marks the sheltered ground.
+  const ringGeometry=new THREE.RingGeometry(SANCTUARY.radius-.08,SANCTUARY.radius,48);
+  const shrineLanterns=LANTERNS.map(l=>{const y=terrainHeight(l.x,l.z),prop=billboard(propMaps[2],l.x,l.z,1.05,1.05*rects[2][3]/rects[2][2],0x6f756e,y);const glow=billboard(warmMap,l.x,l.z,.7,.7,0xffd98c,y+1.02);glow.material=new THREE.MeshBasicMaterial({map:warmMap,color:0xffc47c,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});glow.castShadow=false;const pool=disk(warmMap,l.x,l.z,SANCTUARY.radius*2.2,SANCTUARY.radius*2.2,0,y+.02);const ring=new THREE.Mesh(ringGeometry,new THREE.MeshBasicMaterial({color:0xf2c27a,transparent:true,opacity:0,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.set(l.x,y+.03,l.z);scene.add(ring);const hint=disk(fogMap,l.x,l.z,1.4,1.4,.25,y+.022);scenery.push(prop,glow,pool,ring,hint);return {prop,glow,pool,ring,hint};});
+  // The pond lookout shimmers until it is used; the reflection of the tart man surfaces on the water once.
+  const shimmer=disk(fogMap,MIRROR.x-2.2,MIRROR.z-.6,2.4,2.4,.3,.03);scenery.push(shimmer);
+  // Rain: short falling streaks recycled around the camera focus.
+  const rainCount=700,rainPos=new Float32Array(rainCount*6),rainSeed=Array.from({length:rainCount},()=>[(rng()-.5)*30,rng()*9,(rng()-.5)*34]);const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:0x9fb8c0,transparent:true,opacity:.32,depthWrite:false}));rain.frustumCulled=false;rain.visible=false;scene.add(rain);
+  // Ura clearing: a stone floor, a small vermilion gate and two lanterns where the four roads cross.
+  if(world.ura){const floorStone=new THREE.Mesh(new THREE.CircleGeometry(5.4,48),new THREE.MeshLambertMaterial({map:pathMap,color:0x8c8190}));floorStone.rotation.x=-Math.PI/2;floorStone.position.set(URA_AREA.x,.012,URA_AREA.z);floorStone.receiveShadow=true;scene.add(floorStone);scenery.push(floorStone);
+    const uraGate=new THREE.Group();uraGate.position.set(URA_AREA.x,0,URA_AREA.z-4.3);scene.add(uraGate);scenery.push(uraGate);for(const x of [-1.3,1.3])volume(new THREE.CylinderGeometry(.14,.2,2.8,10),redWood,x,1.4,0,uraGate);volume(new THREE.BoxGeometry(3.3,.22,.3),redWood,0,2.62,0,uraGate);volume(new THREE.BoxGeometry(3.5,.18,.36),redWood,0,2.95,0,uraGate);
+    for(const side of [-1,1]){const x=URA_AREA.x+side*3.4,z=URA_AREA.z-3.2,m=billboard(propMaps[2],x,z,.9,.9*rects[2][3]/rects[2][2],0xb9a8c4);scenery.push(m);const glow=billboard(warmMap,x,z,.5,.5,0xe0b0ff,.9);glow.material=new THREE.MeshBasicMaterial({map:warmMap,color:0xd9a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});glow.castShadow=false;scenery.push(glow);lanterns.push(glow);}}
   // Cedar Approach: repeated slabs and paired posts create depth with four draw calls.
   const cedarSlabs=[];for(let i=0;i<12;i++)cedarSlabs.push([18+(i%2?.08:-.08),.055,12.2+i*1.02,2.15,.11,.76,0,(i%3-1)*.025,0]);
   instances(hdStone,cedarSlabs);
@@ -89,6 +101,8 @@ export async function createRenderer(host, world) {
   for(const p of STORIES){const m=billboard(noteMap,p.x,p.z,.48,.6,0xe0d8ba,terrainHeight(p.x,p.z)+.08);m.castShadow=false;items.push({kind:'note',p,m});}
   const actor=billboard(atlas.map,START.x,START.z,1.35*atlas.width/atlas.height,1.35,0xe4edf0,.06);actor.material.dispose();actor.material=new THREE.MeshBasicMaterial({map:atlas.map,color:0xc9dce3,transparent:true,alphaTest:.14,side:THREE.DoubleSide});atlas.map.repeat.set(1/8,1/8);
   const ghost=billboard(enemy.map,0,0,1.8*enemy.width/enemy.height,1.8,0xd8ccba,.06);ghost.material.emissive.set(0x242324);enemy.map.repeat.set(1/7,1/8);ghost.visible=false;
+  const reflectionTexture=enemy.map.clone();reflectionTexture.needsUpdate=true;reflectionTexture.repeat.set(1/7,1/8);reflectionTexture.offset.set(0,7/8);
+  const reflection=new THREE.Mesh(new THREE.PlaneGeometry(1.9,2.1),new THREE.MeshBasicMaterial({map:reflectionTexture,color:0x9fc4cc,transparent:true,opacity:0,depthWrite:false,alphaTest:.05}));reflection.rotation.set(-Math.PI/2,0,Math.PI);reflection.position.set(42,.035,46);reflection.visible=false;scene.add(reflection);
   const playerShadow=disk(shadowMap,START.x,START.z,.8,.5,.8,.025),ghostShadow=disk(shadowMap,0,0,1,.6,.8,.025);
   const flashlight=new THREE.SpotLight(0xffe6b8,20,11,.43,.7,1.3);flashlight.castShadow=true;flashlight.shadow.mapSize.set(256,256);flashlight.shadow.bias=-.0008;flashlight.shadow.normalBias=.035;scene.add(flashlight,flashlight.target);
   // A ground cone clipped by the exact same wall cells as movement and sight.
@@ -104,15 +118,15 @@ export async function createRenderer(host, world) {
     }`});postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),post));
   let lightQuality=false,renderScale=mobile?.72:.82,slowFrames=0;
   function resize(){const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/h;camera.fov=h>w?47:41;camera.updateProjectionMatrix();renderer.setSize(w,h);const pr=renderer.getPixelRatio(),tw=Math.round(w*pr*renderScale),th=Math.round(h*pr*renderScale);target.setSize(tw,th);post.uniforms.resolution.value.set(tw,th);host.dataset.renderScale=String(renderScale);}
-  new ResizeObserver(resize).observe(host);resize();
+  const observer=new ResizeObserver(resize);observer.observe(host);resize();
   for(const map of [floor.material.map,...Object.values(tileMaps),broadMap,tallMap,...propMaps,atlas.map,enemy.map,keyMap,noteMap,shadowMap,warmMap,fogMap,pathMap,hdStoneMap,hdWoodMap,hdRoofMap])renderer.initTexture(map);
   placeLocalLights(focus);renderer.initRenderTarget(target);
   if(renderer.compileAsync){await Promise.all([renderer.compileAsync(scene,camera),renderer.compileAsync(postScene,postCamera)]);}else{renderer.compile(scene,camera);renderer.compile(postScene,postCamera);}
   // Exercise every area while the loading overlay is visible, including shadows and post-processing.
-  for(const area of AREAS){focus.set(area.x,.35,area.z-4);camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);placeLocalLights(focus);for(const m of scenery){const c=m.userData.cullPosition||m.position;m.visible=Math.abs(c.x-focus.x)<22&&Math.abs(c.z-focus.z)<26;}renderer.setRenderTarget(target);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCamera);}
+  for(const area of world.ura?[...AREAS,URA_AREA]:AREAS){focus.set(area.x,.35,area.z-4);camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);placeLocalLights(focus);for(const m of scenery){const c=m.userData.cullPosition||m.position;m.visible=Math.abs(c.x-focus.x)<22&&Math.abs(c.z-focus.z)<26;}renderer.setRenderTarget(target);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCamera);}
   focus.set(START.x,.35,START.z-4);camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);host.dataset.prewarmed='true';
   const screen=new THREE.Vector3(),tempFocus=new THREE.Vector3(),bottom=new THREE.Vector3(),top=new THREE.Vector3(),q=new THREE.Vector3();
-  return {atlas,enemy,rects,setQuality(low){lightQuality=low;renderer.setPixelRatio(low?1:qualityRatio());renderer.shadowMap.enabled=!low;renderScale=low?1:(mobile?.72:.82);resize();},reset(g){focus.set(g.player.x,0,g.player.z-2);},draw(g,dt){
+  return {atlas,enemy,rects,ura:world.ura,dispose(){observer.disconnect();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},setQuality(low){lightQuality=low;renderer.setPixelRatio(low?1:qualityRatio());renderer.shadowMap.enabled=!low;renderScale=low?1:(mobile?.72:.82);resize();},reset(g){focus.set(g.player.x,0,g.player.z-2);},draw(g,dt){
     const p=g.player,e=g.ghost,playerY=terrainHeight(p.x,p.z);focus.lerp(tempFocus.set(p.x,playerY+.35,p.z-4),1-Math.exp(-dt*4.2));camera.position.copy(focus).add(cameraOffset);camera.lookAt(focus);placeLocalLights(focus);
     const dir=((Math.round(p.facing/(Math.PI/4))%8)+8)%8,row=atlas.directionRows[dir],frame=p.moving?Math.floor(g.time*(p.running?12:8))%8:0;atlas.map.offset.set(frame/8,1-(row+1)/8);actor.position.set(p.x,playerY+.06,p.z);playerShadow.position.set(p.x,playerY+.025,p.z);
     ghost.visible=e.state!=='absent'&&distance(e,p)<21;ghostShadow.visible=ghost.visible;if(ghost.visible){const er=((Math.round(e.facing/(Math.PI/4))%8)+8)%8,ef=e.moving?Math.floor(g.time*(e.state==='chase'?10:6))%7:0;enemy.map.offset.set(ef/7,1-(er+1)/8);ghost.position.set(e.x,.06,e.z);ghostShadow.position.set(e.x,.025,e.z);}
@@ -120,10 +134,15 @@ export async function createRenderer(host, world) {
     screen.set(p.x,.7,p.z).project(camera);
     for(const m of trees){if(!m.visible)continue;m.updateMatrixWorld();bottom.set(-.5,0,0).applyMatrix4(m.matrixWorld).project(camera);top.set(.5,1,0).applyMatrix4(m.matrixWorld).project(camera);const obscures=m.position.z>p.z&&screen.x>bottom.x-.05&&screen.x<top.x+.05&&screen.y>bottom.y-.08&&screen.y<top.y+.08;m.material.opacity=obscures?.065:1;m.material.depthWrite=!obscures;}
     for(const m of trunks){if(!m.visible)continue;q.copy(m.position).project(camera);const obscures=m.position.z>p.z&&Math.abs(q.x-screen.x)<.16&&Math.abs(q.y-screen.y)<.32;m.material.opacity=obscures?.06:1;m.material.depthWrite=!obscures;}
-    items.forEach(({kind,p:point,m,pool})=>{m.visible=distance(point,p)<18&&(kind!=='key'||g.keys.some(k=>k.x===point.x&&k.z===point.z&&!k.taken));if(pool){pool.visible=m.visible;pool.material.opacity=.32+Math.sin(g.time*2.4+point.x)*.13;}if(kind==='key')m.position.y=terrainHeight(point.x,point.z)+.25+Math.sin(g.time*2+point.x)*.09;});
+    const revealed=g.time<g.mirror.until;items.forEach(({kind,p:point,m,pool})=>{m.visible=(distance(point,p)<18||(revealed&&kind==='key'))&&(kind!=='key'||g.keys.some(k=>k.x===point.x&&k.z===point.z&&!k.taken));if(pool){pool.visible=m.visible;pool.material.opacity=.32+Math.sin(g.time*2.4+point.x)*.13;}if(kind==='key')m.position.y=terrainHeight(point.x,point.z)+.25+Math.sin(g.time*2+point.x)*.09;});
     flashlight.visible=g.light;flashlight.position.set(p.x,playerY+1.0,p.z);flashlight.target.position.set(p.x+Math.sin(p.facing)*6,terrainHeight(p.x+Math.sin(p.facing)*6,p.z+Math.cos(p.facing)*6),p.z+Math.cos(p.facing)*6);cone.visible=g.light;
     if(g.light){for(let i=0;i<=32;i++){const a=p.facing-.43+i/32*.86,sin=Math.sin(a),cos=Math.cos(a);let r=.3;while(r<7){const x=p.x+sin*r,z=p.z+cos*r,cx=Math.round(x),cz=Math.round(z);if(cx<0||cz<0||cx>=world.size||cz>=world.size||!world.cells[cz*world.size+cx])break;r+=.16;}const x=p.x+sin*r,z=p.z+cos*r;coneEnds[i].set(x,terrainHeight(x,z)+.028,z);}for(let i=0;i<32;i++){const a=coneEnds[i],b=coneEnds[i+1],at=i*9;conePos[at]=p.x;conePos[at+1]=playerY+.028;conePos[at+2]=p.z;conePos[at+3]=a.x;conePos[at+4]=a.y;conePos[at+5]=a.z;conePos[at+6]=b.x;conePos[at+7]=b.y;conePos[at+8]=b.z;}coneGeo.attributes.position.needsUpdate=true;}
     fog.forEach(m=>m.position.set(focus.x+m.userData.x+Math.sin(g.time*.08+m.userData.phase)*2,.5,focus.z+m.userData.z));ripples.forEach(m=>m.material.opacity=.15+Math.sin(g.time*.6+m.userData.phase)*.10);lanterns.forEach((m,i)=>m.material.opacity=.65+Math.sin(g.time*3+i)*.05);
+    g.lanterns.forEach((l,i)=>{const v=shrineLanterns[i],lit=l.state==='lit',left=l.until-g.time,flicker=lit&&left<6?.55+Math.sin(g.time*18)*.35:1;v.glow.visible&&=lit;v.pool.material.opacity=lit?.42*flicker:0;v.ring.material.opacity=lit?.38*flicker:0;v.glow.material.opacity=lit?.85*flicker:0;v.prop.material.color.setHex(lit?0xe8dcb4:l.state==='spent'?0x4a4d48:0x6f756e);v.hint.visible&&=l.state==='dark';if(v.hint.visible)v.hint.material.opacity=.14+Math.sin(g.time*2+i)*.08;});
+    shimmer.visible&&=!g.mirror.used;if(shimmer.visible)shimmer.material.opacity=.18+Math.sin(g.time*1.7)*.12;
+    const since=MIRROR.seconds-(g.mirror.until-g.time);reflection.visible=g.mirror.used&&since>=0&&since<4;if(reflection.visible)reflection.material.opacity=Math.sin(Math.min(1,since/4)*Math.PI)*.7;
+    rain.visible=g.weather==='rain';scene.fog.near=rain.visible?11:17;scene.fog.far=rain.visible?32:42;
+    if(rain.visible){for(let i=0;i<rainCount;i++){const r=rainSeed[i];r[1]-=dt*15;if(r[1]<0)r[1]+=9;const x=focus.x+r[0],z=focus.z+r[2],at=i*6;rainPos[at]=x;rainPos[at+1]=r[1];rainPos[at+2]=z;rainPos[at+3]=x+.05;rainPos[at+4]=r[1]+.45;rainPos[at+5]=z;}rainGeo.attributes.position.needsUpdate=true;}
     if(!lightQuality&&dt>.026){slowFrames+=dt;if(slowFrames>2&&renderScale>.58){renderScale=.58;renderer.shadowMap.enabled=false;resize();host.dataset.adaptive='true';}}else slowFrames=Math.max(0,slowFrames-dt*.3);
     if(lightQuality){renderer.setRenderTarget(null);renderer.render(scene,camera);}else{post.uniforms.focus.value=cameraOffset.length();renderer.setRenderTarget(target);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCamera);}
     return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
