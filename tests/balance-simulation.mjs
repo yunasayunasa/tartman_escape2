@@ -1,4 +1,4 @@
-import { createZone, START, pathfind, distance, update, interact } from '../src/zone.js';
+import { createZone, START, pathfind, distance, update, interact, resolveChoice } from '../src/zone.js';
 
 // Reproducible navigation probes, not a prediction of human completion rates.
 export function runTrial(seed, policy='cautious', enemyEnabled=true) {
@@ -18,6 +18,7 @@ export function runTrial(seed, policy='cautious', enemyEnabled=true) {
     stuck=distance(last,g.player)<.001?stuck+.05:0;last={...g.player};
     if(stuck>3){return {seed,policy,state:'stuck',keys:g.collected,time:Math.round(g.time),chases,at:{x:g.player.x,z:g.player.z},next};}
     if(g.state==='reading')g.state='playing';
+    if(g.state==='choice')resolveChoice(g,false);
   }
   return {seed,policy,state:g.state,keys:g.collected,time:Math.round(g.time),chases};
 }
