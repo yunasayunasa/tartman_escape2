@@ -13,6 +13,20 @@ export const POINTS = Object.freeze([
   { area: 2, x: 13, z: 18, name: '杉の根元' }, { area: 2, x: 21, z: 22, name: '参道の灯籠' }, { area: 2, x: 18, z: 12, name: '古い道標' },
   { area: 3, x: 50, z: 15, name: '奥社の脇' }, { area: 3, x: 42, z: 21, name: '奥社の石燈' }, { area: 3, x: 50, z: 22, name: '結び石' },
 ]);
+// The Ura night (unlocked by the true ending) opens a fifth clearing where the four roads cross.
+export const URA_AREA = Object.freeze({ id: 'ura', name: '裏参道', subtitle: 'まんなかの道は、夜しか通れない。', x: 32, z: 32, color: '#6d5a6e' });
+export const URA_POINTS = Object.freeze([
+  { area: 4, x: 28, z: 32, name: '裏参道の石畳' }, { area: 4, x: 36, z: 32, name: '裏鳥居の足元' }, { area: 4, x: 32, z: 36, name: '欠けた狛犬' },
+]);
+// One unlit lantern per area. Lighting it keeps the tart man out of its circle until the oil runs out.
+export const LANTERNS = Object.freeze([
+  { x: 24.5, z: 46, area: 0 }, { x: 46, z: 39.5, area: 1 }, { x: 13.5, z: 13.5, area: 2 }, { x: 42, z: 13, area: 3 },
+]);
+export const SANCTUARY = Object.freeze({ radius: 2.1, seconds: 40 });
+// Looking into the pond once a night shows the way to the nearest key, and wakes what lives beneath.
+export const MIRROR = Object.freeze({ x: 46.2, z: 47, seconds: 25, wake: 8 });
+export const RAIN = Object.freeze({ chance: .3, hearing: .6 });
+export const weatherFor = seed => random((seed ^ 0x5bd1e995) | 0)() < RAIN.chance ? 'rain' : 'clear';
 export const STORIES = Object.freeze([
   { x: 17, z: 50, title: '濡れた手帳', text: '「錠前は五つ。鍵は、四つの場所に散らした。\n帰るときは、入口の鳥居へ。」\n\n甘い匂いがしても、ついていかないで。' },
   { x: 48, z: 50, title: '水守の覚え書き', text: '明かりを消せば、遠くからは見つかりにくい。\nけれど、走る足音までは消せない。\n\n見つかった子は、みな口のまわりを甘く汚して、\n眠るように倒れていた。' },
@@ -23,7 +37,15 @@ export const STORIES = Object.freeze([
 ]);
 // Final-stage rule: looking back at the tart man for GAZE.hold seconds lets it find you and briefly quickens it.
 export const GAZE = Object.freeze({ cone: Math.cos(55 * Math.PI / 180), hold: .7, decay: 1.5, near: 1.8, boost: 2.5, boostSpeed: 1.12 });
-export const ENDINGS = Object.freeze({ escape: '鳥居の向こうへ', true: 'おいしい、たると' });
+export const ENDINGS = Object.freeze({ escape: '鳥居の向こうへ', true: 'おいしい、たると', home: 'ただいま' });
+export const URA_STORIES = Object.freeze([
+  { x: 17, z: 50, title: '裏返しの手帳', text: '水鏡の向こうでは、右と左が入れ替わる。\n見慣れた道も、知らない道に見える。\n\n迷ったら、道案内を。' },
+  { x: 48, z: 50, title: '焦げたレシピ', text: 'タルト生地、一台分。\n\n「あの子の好きな杏を、たくさん。\n焼き上がりは、帰ってくる時間に合わせて。」' },
+  { x: 15, z: 22, title: '子どもの字の帰路図', text: 'おうち → とりい → いけ → おくのやしろ\n\n「まんなかの道は、夜しか通れないって\nおかあさんが言ってた」' },
+  { x: 50, z: 19, title: '届かなかった返事', text: '「おかあさんへ。\nもりで、まいごに、なりました。\nあかりが みえたら、かえります」' },
+  { x: 44, z: 43, title: '水底の便箋', text: '「池に映っていたのは、私ではなかった。\n私を、ずっと待っているものだった。」' },
+  { x: 21, z: 16, title: '最後の頁', text: '「冷めてしまっても、捨てないで。\nいつか、誰かが食べてくれるから。」' },
+]);
 export const BALANCE = Object.freeze([
   { label: '静寂', sight: 0, chase: 0, reaction: 0, search: 0, hearing: 0, pressure: Infinity },
   { label: '気配', sight: 7.4, chase: 2.56, reaction: .76, search: 3.7, hearing: 4.9, pressure: Infinity },
@@ -34,17 +56,19 @@ export const BALANCE = Object.freeze([
 ]);
 export const random = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-export const areaAt = p => AREAS.reduce((a, b) => distance(a, p) <= distance(b, p) ? a : b);
+export const areaAt = (p, areas = AREAS) => areas.reduce((a, b) => distance(a, p) <= distance(b, p) ? a : b);
+export const areaIn = (g, p = g.player) => areaAt(p, g.areas);
 export function inPond(x, z, radius = 0) { return ((x - 42) / (2.7 + radius)) ** 2 + ((z - 46) / (3.8 + radius)) ** 2 < 1; }
-export function makeWorld() {
+export function makeWorld({ ura = false } = {}) {
   const size = CONFIG.size, cells = new Uint8Array(size * size);
   const segments = [[AREAS[0], AREAS[1]], [AREAS[0], AREAS[2]], [AREAS[1], AREAS[3]], [AREAS[2], AREAS[3]], [AREAS[0], AREAS[3]], [AREAS[1], AREAS[2]]];
   const islands = [{ x: 17, z: 44, r: 1.65 }, { x: 18, z: 17, r: 2.0 }, { x: 46, z: 17, r: 2.1 }, { x: 31, z: 32, r: 1.1 }];
   function disc(x, z, r) { for (let iz = Math.max(1, Math.floor(z-r)); iz <= Math.min(size-2, z+r); iz++) for (let ix = Math.max(1, Math.floor(x-r)); ix <= Math.min(size-2, x+r); ix++) if (Math.hypot(ix-x,iz-z)<r) cells[iz*size+ix]=1; }
   for (const a of AREAS) disc(a.x,a.z,9.2);
+  if (ura) disc(URA_AREA.x,URA_AREA.z,5.5);
   for (const [a,b] of segments) { const n=Math.ceil(distance(a,b)*3); for(let i=0;i<=n;i++)disc(a.x+(b.x-a.x)*i/n,a.z+(b.z-a.z)*i/n,2.2); }
   for(let z=1;z<size-1;z++)for(let x=1;x<size-1;x++)if(inPond(x,z)||islands.some(o=>distance(o,{x,z})<o.r))cells[z*size+x]=0;
-  return { size, cells, segments, islands };
+  return { size, cells, segments, islands, ura };
 }
 export function walkable(w,x,z,r=.27) {
   for(const [dx,dz] of [[0,0],[r,r],[-r,r],[r,-r],[-r,-r]]){const cx=Math.round(x+dx),cz=Math.round(z+dz);if(cx<0||cz<0||cx>=w.size||cz>=w.size||!w.cells[cz*w.size+cx])return false;}
@@ -64,27 +88,44 @@ export function pathfind(w,start,goal) {
   if(prev[gi]===-1)return [];
   const path=[];for(let at=gi;at!==si;at=prev[at])path.push({x:at%n,z:Math.floor(at/n)});return path.reverse();
 }
-export function createZone(seed=Date.now(),{memory=[]}={}) {
-  const rng=random(seed),keys=[];
-  for(let area=0;area<AREAS.length;area++){const candidates=POINTS.filter(p=>p.area===area);keys.push({...candidates[Math.floor(rng()*candidates.length)],taken:false});}
-  const extras=POINTS.filter(p=>p.area!==0&&!keys.some(k=>k.x===p.x&&k.z===p.z));keys.push({...extras[Math.floor(rng()*extras.length)],taken:false});
-  return { world:makeWorld(),seed,rng,state:'ready',time:0,player:{...START,facing:Math.PI,stamina:100,locked:false,exhausted:false,moving:false,running:false,recovery:0},keys,collected:0,memory:memory.filter(q=>Number.isFinite(q?.x)&&Number.isFinite(q?.z)).slice(-4).map(q=>({x:q.x,z:q.z})),gaze:0,lookedBack:false,darkened:false,ending:null,caughtLooking:false,notes:STORIES.map(n=>({...n,read:false})),light:true,spawnAt:null,ghost:{x:0,z:0,state:'absent',facing:0,path:[],target:null,repath:0,memory:0,boost:0,awareness:0,chaseTime:0,cooldown:0,hearAt:0,unseen:0,moving:false},event:null,notice:'鍵を五つ集め、入口の鳥居へ。',noticeUntil:7 };
+export function createZone(seed=Date.now(),{memory=[],ura=false,weather='clear'}={}) {
+  const rng=random(seed),keys=[],areas=ura?[...AREAS,URA_AREA]:AREAS,points=ura?[...POINTS,...URA_POINTS]:POINTS;
+  for(let area=0;area<areas.length;area++){const candidates=points.filter(p=>p.area===area);keys.push({...candidates[Math.floor(rng()*candidates.length)],taken:false});}
+  // Four areas share five keys, so one area holds a second; the Ura night has exactly one key per area.
+  if(!ura){const extras=points.filter(p=>p.area!==0&&!keys.some(k=>k.x===p.x&&k.z===p.z));keys.push({...extras[Math.floor(rng()*extras.length)],taken:false});}
+  return { world:makeWorld({ura}),ura,weather,areas,points,lanterns:LANTERNS.map(l=>({...l,state:'dark',until:0})),mirror:{used:false,until:0},seed,rng,state:'ready',time:0,player:{...START,facing:Math.PI,stamina:100,locked:false,exhausted:false,moving:false,running:false,recovery:0},keys,collected:0,memory:memory.filter(q=>Number.isFinite(q?.x)&&Number.isFinite(q?.z)).slice(-4).map(q=>({x:q.x,z:q.z})),gaze:0,lookedBack:false,darkened:false,ending:null,caughtLooking:false,notes:(ura?URA_STORIES:STORIES).map(n=>({...n,read:false})),light:true,spawnAt:null,ghost:{x:0,z:0,state:'absent',facing:0,path:[],target:null,repath:0,memory:0,boost:0,awareness:0,chaseTime:0,cooldown:0,hearAt:0,unseen:0,moving:false},event:null,notice:ura?'水鏡の夜。右と左が、入れ替わっている。':weather==='rain'?'雨の夜。足音は雨に紛れる——あれの足音も。':'鍵を五つ集め、入口の鳥居へ。',noticeUntil:7 };
 }
 export function say(g,text,seconds=5){g.notice=text;g.noticeUntil=g.time+seconds;}
 export function nearestInteractable(g){
-  const items=[...g.keys.filter(k=>!k.taken).map(item=>({kind:'key',item})),...g.notes.map(item=>({kind:'note',item})),{kind:'gate',item:START}];
+  const items=[...g.keys.filter(k=>!k.taken).map(item=>({kind:'key',item})),...g.notes.map(item=>({kind:'note',item})),...g.lanterns.filter(l=>l.state==='dark').map(item=>({kind:'lantern',item})),...(g.mirror.used?[]:[{kind:'mirror',item:MIRROR}]),{kind:'gate',item:START}];
   return items.filter(o=>distance(o.item,g.player)<CONFIG.interact).sort((a,b)=>distance(a.item,g.player)-distance(b.item,g.player))[0]||null;
 }
 export function interact(g){
   if(g.state!=='playing')return;const o=nearestInteractable(g);if(!o)return;
   if(o.kind==='key'){o.item.taken=true;g.collected++;g.event='key';if(g.collected===1){g.spawnAt=g.time+CONFIG.spawnDelay;say(g,'遠くで枝が折れた。まだ、少し猶予がある。',7);}else say(g,KEY_NOTICES[g.collected],g.collected===CONFIG.keys?8:5);}
   else if(o.kind==='note'){o.item.read=true;g.reading=o.item;g.state='reading';}
+  else if(o.kind==='lantern'){o.item.state='lit';o.item.until=g.time+SANCTUARY.seconds;g.event='lantern';say(g,'灯籠に火が入った。この灯りの中には、あれは入ってこない。',5);}
+  else if(o.kind==='mirror')peek(g);
   else if(g.collected===CONFIG.keys){if(g.notes.every(n=>n.read))g.state='choice';else finish(g,'escape');}else say(g,`入口の錠前は、あと${CONFIG.keys-g.collected}つ。`);
 }
 const KEY_NOTICES=['','遠くで枝が折れた。まだ、少し猶予がある。','鍵 2 / 5 — 足音が、少し速くなった。','鍵 3 / 5 — 足音が二つ、重なって聞こえる。','鍵 4 / 5 — 甘い匂いが、森じゅうに満ちている。','五つの鍵が揃った。足音が三つ。——もう、振り返らないで。'];
+function peek(g){
+  const e=g.ghost,p=g.player;g.mirror.used=true;g.mirror.until=g.time+MIRROR.seconds;g.event='mirror';
+  // The reflection laughs first: an absent tart man wakes early, a present one learns where you stand.
+  if(e.state==='absent'){g.spawnAt=Math.min(g.spawnAt??Infinity,g.time+MIRROR.wake);say(g,'水の底で、何かが先に笑った。遠くで、足音が目を覚ます。',6);}
+  else{e.state='search';e.memory=Math.max(e.memory,BALANCE[g.collected].search+2);e.cooldown=0;target(e,p);say(g,'水の底で、何かが先に笑った。——あれが、こちらを向いた。',6);}
+}
+export const inSanctuary=(g,p)=>g.lanterns.some(l=>l.state==='lit'&&distance(l,p)<SANCTUARY.radius);
+// Guidance from the pond: nearest remaining key (or the gate) and an on-screen direction.
+export function mirrorGuide(g){
+  if(g.time>=g.mirror.until)return null;const p=g.player,goals=g.keys.filter(k=>!k.taken);
+  const goal=goals.length?goals.reduce((a,b)=>distance(a,p)<=distance(b,p)?a:b):{...START,name:'入口の鳥居'};
+  const dx=(g.ura?-1:1)*(goal.x-p.x),up=p.z-goal.z,index=((Math.round(Math.atan2(dx,up)/(Math.PI/4))%8)+8)%8;
+  return {goal,arrow:['↑','↗','→','↘','↓','↙','←','↖'][index],area:areaIn(g,goal)};
+}
 function finish(g,ending){g.state='won';g.event='won';g.ending=ending;}
 // Reading every record reveals the choice at the gate: pass through, or turn around.
-export function resolveChoice(g,lookBack){if(g.state==='choice')finish(g,lookBack?'true':'escape');}
+export function resolveChoice(g,lookBack){if(g.state==='choice')finish(g,lookBack?(g.ura?'home':'true'):'escape');}
 export function facingToward(g,q){const p=g.player,d=distance(p,q);return d>1e-6&&(Math.sin(p.facing)*(q.x-p.x)+Math.cos(p.facing)*(q.z-p.z))/d>GAZE.cone;}
 function move(w,e,dx,dz){if(walkable(w,e.x+dx,e.z))e.x+=dx;if(walkable(w,e.x,e.z+dz))e.z+=dz;}
 function target(e,p){e.target={x:p.x,z:p.z};e.repath=0;}
@@ -92,7 +133,7 @@ export function updateEnemy(g,dt){
   const e=g.ghost,p=g.player,b=BALANCE[g.collected];e.moving=false;
   if(e.state==='absent'){
     if(g.spawnAt===null||g.time<g.spawnAt)return;
-    const safe=POINTS.filter(q=>distance(q,p)>16&&!lineOfSight(g.world,p,q));
+    const safe=g.points.filter(q=>distance(q,p)>16&&!lineOfSight(g.world,p,q));
     if(!safe.length){g.spawnAt=g.time+1;return;}
     const spawn=safe[Math.floor(g.rng()*safe.length)];e.x=spawn.x;e.z=spawn.z;e.state='patrol';e.target=null;e.unseen=0;g.event='arrival';say(g,g.memory.length?'遠い足音が歩き始めた。——前の夜と、同じ道を。':'遠い足音が、森を歩き始めた。',6);
   }
@@ -104,33 +145,39 @@ export function updateEnemy(g,dt){
     candidates.sort((a,c)=>distance(a,p)-distance(c,p));const q=candidates[0];if(q){e.x=q.x;e.z=q.z;e.state='search';e.memory=b.search+2;e.path=[];e.repath=0;e.awareness=0;e.cooldown=0;e.unseen=0;target(e,p);g.event='pressure';say(g,'近くで、湿った枝が折れた。',4);d=distance(e,p);visible=false;}
   }
   const range=g.light?b.sight:b.sight*.66;
+  const sheltered=inSanctuary(g,p);
   let sees=d<range&&visible&&(e.cooldown===0||d<1.8);
   // On the way home it only notices a player who turns to look at it, or one who comes too close.
   if(g.collected===CONFIG.keys){
     const looking=visible&&d<range&&facingToward(g,e);
     g.gaze=looking?Math.min(1,g.gaze+dt/GAZE.hold):Math.max(0,g.gaze-dt*GAZE.decay);
     sees=visible&&(g.gaze>=1||d<GAZE.near);
-    if(g.gaze>=1&&e.state!=='chase'){e.awareness=1;e.boost=GAZE.boost;g.lookedBack=true;say(g,'目が合った。あれが、嬉しそうに駆けてくる。',4);}
+    if(g.gaze>=1&&e.state!=='chase'&&!sheltered){e.awareness=1;e.boost=GAZE.boost;g.lookedBack=true;say(g,'目が合った。あれが、嬉しそうに駆けてくる。',4);}
   }
+  // Inside a lit lantern's circle the player can be neither seen nor heard, and cannot be caught.
+  if(sheltered){sees=false;g.gaze=0;}
   e.awareness=sees?Math.min(1,e.awareness+dt/Math.max(.1,b.reaction)):Math.max(0,e.awareness-dt*1.8);
   if(sees&&(e.awareness>=1||d<1.4)){
     if(e.state!=='chase'){g.event=e.boost>0?'gaze':'chase';e.chaseTime=0;}e.unseen=0;
     e.state='chase';e.target={x:p.x,z:p.z};e.memory=b.search;
   }else if(e.state==='chase'){e.state='search';e.memory=b.search;e.repath=0;}
   // Hearing records the noise location, never a hidden player's ongoing position.
-  if(e.state!=='chase'&&p.running&&d<b.hearing*1.22&&g.time>=e.hearAt&&e.cooldown===0){const route=pathfind(g.world,e,p);if(route.length&&route.length<b.hearing*1.75){e.state='search';e.memory=b.search+1.1;target(e,p);}e.hearAt=g.time+1.15;}
+  const hearing=b.hearing*(g.weather==='rain'?RAIN.hearing:1);
+  if(!sheltered&&e.state!=='chase'&&p.running&&d<hearing*1.22&&g.time>=e.hearAt&&e.cooldown===0){const route=pathfind(g.world,e,p);if(route.length&&route.length<hearing*1.75){e.state='search';e.memory=b.search+1.1;target(e,p);}e.hearAt=g.time+1.15;}
   if(e.state==='chase'){e.chaseTime+=dt;if(e.chaseTime>=12){e.state='search';e.memory=2.4;e.cooldown=5;e.awareness=0;target(e,p);}}
   if(e.state==='search'){e.memory-=dt;if(e.memory<=0){e.state='patrol';e.target=null;e.awareness=0;e.cooldown=Math.max(e.cooldown,2.5);}}
   if(e.state==='patrol'&&(!e.target||distance(e,e.target)<.65)){
     // The forest remembers where earlier nights ended and sometimes walks back there first.
     const remembered=g.memory.filter(q=>distance(q,e)>6&&walkable(g.world,q.x,q.z));
     if(remembered.length&&g.rng()<.35)target(e,remembered[Math.floor(g.rng()*remembered.length)]);
-    else{const choices=POINTS.filter(q=>distance(q,e)>6);target(e,choices[Math.floor(g.rng()*choices.length)]);}
+    else{const choices=g.points.filter(q=>distance(q,e)>6);target(e,choices[Math.floor(g.rng()*choices.length)]);}
   }
   e.repath-=dt;if(e.target&&e.repath<=0){e.path=pathfind(g.world,e,e.target);e.repath=.65;}
   const next=e.path[0]||(e.target&&visible&&e.state==='chase'?e.target:null);
-  if(next){const stepDistance=distance(e,next),speed=e.state==='chase'?b.chase*(e.boost>0?GAZE.boostSpeed:1):e.state==='search'?1.85:1.5;if(stepDistance<.13)e.path.shift();else{e.facing=Math.atan2(next.x-e.x,next.z-e.z);const step=Math.min(stepDistance,speed*dt);move(g.world,e,(next.x-e.x)/stepDistance*step,(next.z-e.z)/stepDistance*step);e.moving=true;}}
-  if(distance(p,e)<CONFIG.capture&&lineOfSight(g.world,e,p)){g.state='lost';g.event='lost';g.caughtLooking=e.boost>0;}
+  if(next){const stepDistance=distance(e,next),speed=e.state==='chase'?b.chase*(e.boost>0?GAZE.boostSpeed:1):e.state==='search'?1.85:1.5;if(stepDistance<.13)e.path.shift();else{e.facing=Math.atan2(next.x-e.x,next.z-e.z);const step=Math.min(stepDistance,speed*dt),to={x:e.x+(next.x-e.x)/stepDistance*step,z:e.z+(next.z-e.z)/stepDistance*step};
+    // A lit lantern's circle cannot be entered, though one caught inside may still walk out.
+    if(!inSanctuary(g,to)||inSanctuary(g,e)){move(g.world,e,to.x-e.x,to.z-e.z);e.moving=true;}}}
+  if(!sheltered&&distance(p,e)<CONFIG.capture&&lineOfSight(g.world,e,p)){g.state='lost';g.event='lost';g.caughtLooking=e.boost>0;}
 }
 export function update(g,input,dt){
   if(g.state!=='playing')return;dt=Math.min(.05,Math.max(0,dt));g.time+=dt;const p=g.player;
@@ -139,5 +186,6 @@ export function update(g,input,dt){
   else{p.recovery=Math.max(0,p.recovery-dt);if(p.recovery===0)p.stamina=Math.min(100,p.stamina+CONFIG.recover*dt);if(p.stamina>=25)p.exhausted=false;}
   if(p.moving){const a=Math.round(Math.atan2(input.x,input.z)/(Math.PI/4))*Math.PI/4;if(!p.locked)p.facing=a;const speed=p.running?CONFIG.run:p.locked?CONFIG.locked:CONFIG.walk;move(g.world,p,Math.sin(a)*speed*dt,Math.cos(a)*speed*dt);}
   if(!g.light)g.darkened=true;
+  for(const l of g.lanterns)if(l.state==='lit'&&g.time>=l.until){l.state='spent';g.event='lantern-out';say(g,'灯籠の油が尽きた。',3);}
   updateEnemy(g,dt);
 }
